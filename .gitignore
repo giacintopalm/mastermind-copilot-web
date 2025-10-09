@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+backend/target/
+frontend/node_modules/
+frontend/dist/
+
+# Build outputs
+*.jar
+*.class
+dist/
+build/
+temp/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+server.log
+
+# Temporary files
+*.tmp
+*.temp
+temp.zip
+mastermind-*.zip
+
+# Azure deployment files
+.azure/
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+
+# Package locks (keep package.json but not locks)
+package-lock.json
+yarn.lock

@@ -1,0 +1,12 @@
+name: mastermind-java
+metadata:
+  template: mastermind-java@0.0.1-beta
+  
+services:
+  backend:
+    project: ./backend
+    language: java
+    host: appservice
+    
+infra:
+  provider: bicep
