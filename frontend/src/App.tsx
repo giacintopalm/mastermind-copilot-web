@@ -1,15 +1,34 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { MouseEvent, DragEvent } from 'react'
-import { gameApi, Color, GameState, GuessAttempt, ApiError } from './api'
+import { gameApi, Color, GameState, GuessAttempt, ApiError, API_BASE_URL } from './api'
 
 const PALETTE: Color[] = ['red', 'blue', 'green', 'yellow', 'purple', 'cyan']
 const SLOT_COUNT = 4
 
+type GameMode = 'solo' | 'computer'
+type GamePhase = 'setup' | 'playing' | 'finished'
+type Turn = 'user' | 'computer'
+
 export default function App() {
+  // Game mode and phase
+  const [gameMode, setGameMode] = useState<GameMode>('solo')
+  const [gamePhase, setGamePhase] = useState<GamePhase>('setup')
+  const [currentTurn, setCurrentTurn] = useState<Turn>('user')
+  
+  // User game state
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [current, setCurrent] = useState<Color[]>(Array(SLOT_COUNT).fill(null as unknown as Color))
   const [selectedSlot, setSelectedSlot] = useState<number | null>(0)
   const [secret, setSecret] = useState<Color[]>([])
+  
+  // Computer game state
+  const [computerGameState, setComputerGameState] = useState<GameState | null>(null)
+  const [computerSecret, setComputerSecret] = useState<Color[]>(Array(SLOT_COUNT).fill(null as unknown as Color))
+  const [selectedComputerSecretSlot, setSelectedComputerSecretSlot] = useState<number | null>(0)
+  const [computerThinking, setComputerThinking] = useState(false)
+  const [computerGameSolution, setComputerGameSolution] = useState<Color[]>([])
+  
+  // Common state
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -19,12 +38,44 @@ export default function App() {
     return last?.feedback?.exact === SLOT_COUNT
   }, [gameState])
 
+  const computerWin = useMemo(() => {
+    if (!computerGameState || !computerGameState.history?.length) return false
+    const last = computerGameState.history[computerGameState.history.length - 1]
+    return last?.feedback?.exact === SLOT_COUNT
+  }, [computerGameState])
+
   const gameOver = gameState?.gameOver ?? false
+  const computerGameOver = computerGameState?.gameOver ?? false
+  
+  // Determine game winner in computer mode
+  const gameWinner = useMemo(() => {
+    if (gameMode !== 'computer' || gamePhase !== 'finished') return null
+    
+    const userAttempts = gameState?.history?.length ?? 0
+    const computerAttempts = computerGameState?.history?.length ?? 0
+    
+    if (win && computerWin) {
+      if (userAttempts < computerAttempts) return 'user'
+      if (computerAttempts < userAttempts) return 'computer'
+      return 'draw'
+    }
+    if (win) return 'user'
+    if (computerWin) return 'computer'
+    
+    // If neither won but both games are over, it's a draw
+    if (gameOver && computerGameOver) return 'draw'
+    
+    return null
+  }, [gameMode, gamePhase, win, computerWin, gameState?.history?.length, computerGameState?.history?.length, gameOver, computerGameOver])
 
   // Initialize a new game on component mount
   useEffect(() => {
-    createNewGame()
-  }, [])
+    if (gameMode === 'solo') {
+      createNewGame()
+    } else {
+      resetComputerMode()
+    }
+  }, [gameMode])
 
   async function createNewGame() {
     try {
@@ -35,6 +86,10 @@ export default function App() {
       setCurrent(Array(SLOT_COUNT).fill(null as unknown as Color))
       setSelectedSlot(0)
       setSecret([]) // Reset secret for spoiler feature
+      
+      if (gameMode === 'solo') {
+        setGamePhase('playing')
+      }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Failed to create game'
       setError(message)
@@ -44,6 +99,56 @@ export default function App() {
     }
   }
 
+  async function createComputerGame() {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Create game for computer with user's secret as the target
+      const request = {
+        slotCount: SLOT_COUNT,
+        secret: computerSecret.map(c => c.toString())
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/games`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const message = errorData.message || `HTTP ${response.status}: ${response.statusText}`
+        throw new ApiError(message, response.status)
+      }
+      
+      const computerGame = await response.json()
+      setComputerGameState(computerGame)
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to create computer game'
+      setError(message)
+      console.error('Error creating computer game:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function resetComputerMode() {
+    setGamePhase('setup')
+    setCurrentTurn('user')
+    setGameState(null)
+    setComputerGameState(null)
+    setCurrent(Array(SLOT_COUNT).fill(null as unknown as Color))
+    setComputerSecret(Array(SLOT_COUNT).fill(null as unknown as Color))
+    setSelectedSlot(0)
+    setSelectedComputerSecretSlot(0)
+    setSecret([])
+    setComputerGameSolution([])
+    setComputerThinking(false)
+  }
+
   async function loadGameSolution() {
     if (!gameState) return
     try {
@@ -51,6 +156,16 @@ export default function App() {
       setSecret(solution)
     } catch (err) {
       console.error('Error loading solution:', err)
+    }
+  }
+
+  async function loadComputerGameSolution() {
+    if (!computerGameState) return
+    try {
+      const solution = await gameApi.getGameSolution(computerGameState.id)
+      setComputerGameSolution(solution)
+    } catch (err) {
+      console.error('Error loading computer game solution:', err)
     }
   }
 
@@ -65,12 +180,31 @@ export default function App() {
     setSelectedSlot(nextSlot !== -1 ? nextSlot : null)
   }
 
+  function chooseComputerSecretColor(c: Color) {
+    if (gamePhase !== 'setup' || loading) return
+    if (selectedComputerSecretSlot == null) return
+    const next = [...computerSecret]
+    next[selectedComputerSecretSlot] = c
+    setComputerSecret(next)
+    // advance to next empty slot
+    const nextSlot = next.findIndex((x) => x == null)
+    setSelectedComputerSecretSlot(nextSlot !== -1 ? nextSlot : null)
+  }
+
   function clearSlot(i: number) {
     if (gameOver || loading) return
     const next = [...current]
     next[i] = null as unknown as Color
     setCurrent(next)
     setSelectedSlot(i)
+  }
+
+  function clearComputerSecretSlot(i: number) {
+    if (gamePhase !== 'setup' || loading) return
+    const next = [...computerSecret]
+    next[i] = null as unknown as Color
+    setComputerSecret(next)
+    setSelectedComputerSecretSlot(i)
   }
 
   async function submitGuess() {
@@ -84,12 +218,73 @@ export default function App() {
       setGameState(updatedGame)
       setCurrent(Array(SLOT_COUNT).fill(null as unknown as Color)) // Clear current guess
       setSelectedSlot(0) // Reset to first slot for next guess
+      
+      // In computer mode, check if user won and handle turn switching
+      if (gameMode === 'computer' && gamePhase === 'playing') {
+        const userWon = updatedGame.history.length > 0 && 
+          updatedGame.history[updatedGame.history.length - 1].feedback.exact === SLOT_COUNT
+        
+        if (userWon) {
+          // User won, but computer gets one more turn if it hasn't finished
+          if (!computerGameOver && computerGameState) {
+            setCurrentTurn('computer')
+          } else {
+            setGamePhase('finished')
+          }
+        } else if (updatedGame.gameOver) {
+          // User failed, computer wins if it has guessed correctly, otherwise draw
+          setGamePhase('finished')
+        } else {
+          // Continue game, switch to computer turn
+          setCurrentTurn('computer')
+        }
+      }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Failed to submit guess'
       setError(message)
       console.error('Error submitting guess:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function makeComputerGuess() {
+    if (!computerGameState || computerGameOver || computerThinking) return
+    
+    try {
+      setComputerThinking(true)
+      setError(null)
+      
+      // Simulate thinking time
+      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 2000))
+      
+      const suggestion = await gameApi.getSuggestedGuess(computerGameState.id)
+      
+      if (suggestion === null) {
+        setError('Computer could not generate a guess.')
+        return
+      }
+      
+      // Submit the computer's guess
+      const updatedComputerGame = await gameApi.submitGuess(computerGameState.id, suggestion)
+      setComputerGameState(updatedComputerGame)
+      
+      // Check if computer won
+      const computerWon = updatedComputerGame.history.length > 0 && 
+        updatedComputerGame.history[updatedComputerGame.history.length - 1].feedback.exact === SLOT_COUNT
+      
+      if (computerWon || updatedComputerGame.gameOver) {
+        setGamePhase('finished')
+      } else {
+        // Switch back to user turn
+        setCurrentTurn('user')
+      }
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Computer failed to make guess'
+      setError(message)
+      console.error('Error making computer guess:', err)
+    } finally {
+      setComputerThinking(false)
     }
   }
 
@@ -117,8 +312,39 @@ export default function App() {
     }
   }
 
+  async function startComputerMode() {
+    if (computerSecret.some(c => c == null)) {
+      setError('Please set a complete secret for the computer to guess.')
+      return
+    }
+    
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Create user's game (computer generates secret automatically)
+      await createNewGame()
+      
+      // Create computer's game with user-provided secret
+      await createComputerGame()
+      
+      setGamePhase('playing')
+      setCurrentTurn('user')
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to start computer mode'
+      setError(message)
+      console.error('Error starting computer mode:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function resetGame() {
-    await createNewGame()
+    if (gameMode === 'solo') {
+      await createNewGame()
+    } else {
+      resetComputerMode()
+    }
   }
   
   function handleDragStart(e: DragEvent<HTMLButtonElement>, color: Color | null, fromSlot?: number) {
@@ -184,14 +410,92 @@ export default function App() {
     }
   }
 
+  // Drag handlers for computer secret setting
+  function handleComputerSecretDragOver(e: DragEvent<HTMLButtonElement>) {
+    if (gamePhase !== 'setup') return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+  
+  function handleComputerSecretDrop(e: DragEvent<HTMLButtonElement>, targetSlot: number) {
+    if (gamePhase !== 'setup') return
+    e.preventDefault()
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'))
+      const { color, fromSlot } = data
+      
+      if (!color) return
+      
+      const next = [...computerSecret]
+      
+      if (fromSlot !== null && fromSlot !== targetSlot) {
+        const targetColor = next[targetSlot]
+        next[targetSlot] = color
+        if (targetColor) {
+          next[fromSlot] = targetColor
+        } else {
+          next[fromSlot] = null as unknown as Color
+        }
+      } else {
+        next[targetSlot] = color
+      }
+      
+      setComputerSecret(next)
+      setSelectedComputerSecretSlot(targetSlot)
+    } catch (err) {
+      console.error('Error processing computer secret drop:', err)
+    }
+  }
+
   return (
     <div className="app">
       <header>
         <h1>Mastermind</h1>
-        <button className="secondary" onClick={resetGame}>New Game</button>
+        <div className="header-controls">
+          <div className="mode-selector">
+            <button 
+              className={gameMode === 'solo' ? 'primary' : 'secondary'} 
+              onClick={() => setGameMode('solo')}
+              disabled={loading}
+            >
+              Solo
+            </button>
+            <button 
+              className={gameMode === 'computer' ? 'primary' : 'secondary'} 
+              onClick={() => setGameMode('computer')}
+              disabled={loading}
+            >
+              vs Computer
+            </button>
+          </div>
+          <button className="secondary" onClick={resetGame} disabled={loading}>
+            New Game
+          </button>
+        </div>
       </header>
 
       <main>
+        {gameMode === 'solo' ? renderSoloMode() : renderComputerMode()}
+        
+        {error && (
+          <div className="error-message">
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        {loading && (
+          <div className="loading-message">
+            Loading...
+          </div>
+        )}
+      </main>
+    </div>
+  )
+
+  function renderSoloMode() {
+    return (
+      <>
         <div className="main-game-layout">
           <section className="guess-section">
             <div className="section-header">
@@ -323,33 +627,303 @@ export default function App() {
             </details>
           </div>
         </section>
+      </>
+    )
+  }
 
-        {error && (
-          <div className="error-message" style={{
-            background: '#fee', 
-            border: '1px solid #fcc', 
-            borderRadius: '4px', 
-            padding: '12px', 
-            margin: '16px 0',
-            color: '#c33'
-          }}>
-            <strong>Error:</strong> {error}
-          </div>
-        )}
+  function renderComputerMode() {
+    if (gamePhase === 'setup') {
+      return renderComputerSetup()
+    }
+    
+    if (gamePhase === 'finished') {
+      return renderGameFinished()
+    }
+    
+    return renderComputerGame()
+  }
 
-        {loading && (
-          <div className="loading-message" style={{
-            background: '#eff', 
-            border: '1px solid #cdf', 
-            borderRadius: '4px', 
-            padding: '12px', 
-            margin: '16px 0',
-            color: '#36c'
-          }}>
-            Loading...
+  function renderComputerSetup() {
+    return (
+      <div className="computer-setup">
+        <section className="setup-section">
+          <div className="section-header">
+            <h2>Set Computer's Target</h2>
           </div>
-        )}
-      </main>
-    </div>
-  )
+          <div className="section-content">
+            <p className="setup-instruction">
+              Choose a secret code for the computer to guess:
+            </p>
+            <div className="game-layout">
+              <div className="guess-container">
+                <div className="attempt-number current">🎯</div>
+                <div className="slots">
+                  {Array.from({ length: SLOT_COUNT }).map((_, i) => {
+                    const c = computerSecret[i]
+                    return (
+                      <button
+                        key={i}
+                        className={`slot ${c ?? ''} ${selectedComputerSecretSlot === i ? 'selected' : ''}`}
+                        onClick={() => setSelectedComputerSecretSlot(i)}
+                        draggable={c !== null}
+                        onDragStart={(e) => handleDragStart(e, c, i)}
+                        onDragOver={handleComputerSecretDragOver}
+                        onDrop={(e) => handleComputerSecretDrop(e, i)}
+                        onContextMenu={(e: MouseEvent<HTMLButtonElement>) => {
+                          e.preventDefault()
+                          clearComputerSecretSlot(i)
+                        }}
+                        title={c ? `Slot ${i + 1}: ${c}` : `Slot ${i + 1}: empty (right-click to clear)`}
+                      />
+                    )
+                  })}
+                </div>
+                
+                <div className="actions">
+                  <button
+                    className="primary"
+                    onClick={startComputerMode}
+                    disabled={loading || computerSecret.some((c) => c == null)}
+                  >
+                    {loading ? 'Starting...' : 'Start Game'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <div className="palette">
+          <h3>Colors</h3>
+          {PALETTE.map((c) => (
+            <button
+              key={c}
+              className={`color ${c}`}
+              onClick={() => chooseComputerSecretColor(c)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, c)}
+              title={`Pick ${c}`}
+            />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  function renderGameFinished() {
+    return (
+      <div className="game-finished">
+        <div className="winner-announcement">
+          {gameWinner === 'user' && (
+            <div className="win-message user-win">
+              <div className="trophy">🏆</div>
+              <div className="win-text">You Won!</div>
+              <div className="win-details">
+                You cracked the code in {gameState?.history?.length} attempts, 
+                computer needed {computerGameState?.history?.length} attempts.
+              </div>
+            </div>
+          )}
+          {gameWinner === 'computer' && (
+            <div className="win-message computer-win">
+              <div className="trophy">🤖</div>
+              <div className="win-text">Computer Won!</div>
+              <div className="win-details">
+                Computer cracked the code in {computerGameState?.history?.length} attempts, 
+                you needed {gameState?.history?.length} attempts.
+              </div>
+            </div>
+          )}
+          {gameWinner === 'draw' && (
+            <div className="win-message draw">
+              <div className="trophy">🤝</div>
+              <div className="win-text">It's a Draw!</div>
+              <div className="win-details">
+                Both you and the computer solved your puzzles in the same number of attempts!
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="dual-board-summary">
+          {renderPlayerBoard('Your Game', gameState, current, selectedSlot, 
+            submitGuess, getSuggestion, 'user', secret, loadGameSolution)}
+          {renderPlayerBoard('Computer Game', computerGameState, [], null, 
+            () => {}, () => {}, 'computer', computerGameSolution, loadComputerGameSolution)}
+        </div>
+      </div>
+    )
+  }
+
+  function renderComputerGame() {
+    return (
+      <div className="computer-game">
+        <div className="turn-indicator">
+          <h2>
+            {currentTurn === 'user' ? "Your Turn" : "Computer's Turn"}
+            {currentTurn === 'computer' && computerThinking && " (Thinking...)"}
+          </h2>
+        </div>
+        
+        <div className="dual-board">
+          {renderPlayerBoard('Your Game', gameState, current, selectedSlot, 
+            submitGuess, getSuggestion, 'user', secret, loadGameSolution)}
+          {renderPlayerBoard('Computer Game', computerGameState, [], null, 
+            makeComputerGuess, () => {}, 'computer', computerGameSolution, loadComputerGameSolution)}
+        </div>
+        
+        <div className="shared-palette">
+          <h3>Colors</h3>
+          {PALETTE.map((c) => (
+            <button
+              key={c}
+              className={`color ${c}`}
+              onClick={() => chooseColor(c)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, c)}
+              title={`Pick ${c}`}
+            />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  function renderPlayerBoard(
+    title: string, 
+    gameState: GameState | null, 
+    currentGuess: Color[], 
+    selectedSlot: number | null,
+    onSubmit: () => void,
+    onSuggest: () => void,
+    player: 'user' | 'computer',
+    solution: Color[],
+    loadSolution: () => void
+  ) {
+    const isUserTurn = currentTurn === 'user' && player === 'user'
+    const isComputerTurn = currentTurn === 'computer' && player === 'computer'
+    const isActive = gamePhase === 'playing' && (isUserTurn || isComputerTurn)
+    const playerGameOver = gameState?.gameOver ?? false
+    const playerWin = gameState?.history?.length && 
+      gameState.history[gameState.history.length - 1]?.feedback?.exact === SLOT_COUNT
+
+    return (
+      <section className={`player-board ${player}-board ${isActive ? 'active' : ''}`}>
+        <div className="section-header">
+          <h2>{title}</h2>
+          {playerWin && <span className="board-status win">✓ Won!</span>}
+          {playerGameOver && !playerWin && <span className="board-status lose">✗ Failed</span>}
+        </div>
+        <div className="section-content">
+          {gamePhase === 'playing' && !playerGameOver && (
+            <div className="guess-container">
+              <div className="attempt-number current">?</div>
+              <div className="slots">
+                {Array.from({ length: SLOT_COUNT }).map((_, i) => {
+                  const c = currentGuess[i]
+                  return (
+                    <button
+                      key={i}
+                      className={`slot ${c ?? ''} ${selectedSlot === i ? 'selected' : ''}`}
+                      onClick={() => player === 'user' ? setSelectedSlot(i) : undefined}
+                      draggable={c !== null && player === 'user'}
+                      onDragStart={(e) => player === 'user' ? handleDragStart(e, c, i) : undefined}
+                      onDragOver={player === 'user' ? handleDragOver : undefined}
+                      onDrop={(e) => player === 'user' ? handleDrop(e, i) : undefined}
+                      onContextMenu={player === 'user' ? (e: MouseEvent<HTMLButtonElement>) => {
+                        e.preventDefault()
+                        clearSlot(i)
+                      } : undefined}
+                      title={c ? `Slot ${i + 1}: ${c}` : `Slot ${i + 1}: empty`}
+                      disabled={!isActive}
+                    />
+                  )
+                })}
+              </div>
+              
+              <div className="actions">
+                {player === 'user' && (
+                  <>
+                    <button
+                      className="primary"
+                      onClick={onSubmit}
+                      disabled={!isUserTurn || loading || currentGuess.some((c) => c == null)}
+                    >
+                      {loading ? 'Submitting...' : 'Submit'}
+                    </button>
+                    <button
+                      className="primary"
+                      onClick={onSuggest}
+                      disabled={!isUserTurn || loading}
+                    >
+                      {loading ? 'Getting suggestion...' : 'Suggest'}
+                    </button>
+                  </>
+                )}
+                {player === 'computer' && (
+                  <button
+                    className="primary"
+                    onClick={onSubmit}
+                    disabled={!isComputerTurn || computerThinking}
+                  >
+                    {computerThinking ? 'Thinking...' : 'Computer Turn'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* History */}
+          {gameState?.history?.length ? (
+            <div className="history">
+              {gameState.history.map((h, idx) => (
+                <div key={idx} className="history-item">
+                  <div className="attempt-number">{idx + 1}</div>
+                  <div className="slots small">
+                    {h.guess.map((c: Color, i: number) => (
+                      <span key={i} className={`slot ${c.toLowerCase()}`} />
+                    ))}
+                  </div>
+                  <div className="feedback">
+                    {Array.from({ length: h.feedback.exact }).map((_, i) => (
+                      <span key={"e"+i} className="peg exact" title="Exact match (black)" />
+                    ))}
+                    {Array.from({ length: h.feedback.partial }).map((_, i) => (
+                      <span key={"p"+i} className="peg partial" title="Color-only match (white)" />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">No attempts yet.</p>
+          )}
+
+          {/* Show Solution */}
+          {gameState && (
+            <div className="solution-section-inline">
+              <details className="disclosure" onToggle={(e) => {
+                if ((e.target as HTMLDetailsElement).open && solution.length === 0) {
+                  loadSolution()
+                }
+              }}>
+                <summary>Show solution (spoiler)</summary>
+                <div className="solution-item">
+                  <div className="attempt-number solution-number">✓</div>
+                  <div className="slots small solution-slots">
+                    {solution.map((c, i) => (
+                      <span key={i} className={`slot ${c.toLowerCase()}`} />
+                    ))}
+                  </div>
+                  <div className="feedback solution-feedback">
+                    <span className="solution-text">Secret Code</span>
+                  </div>
+                </div>
+              </details>
+            </div>
+          )}
+        </div>
+      </section>
+    )
+  }
 }

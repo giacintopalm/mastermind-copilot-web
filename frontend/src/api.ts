@@ -1,6 +1,8 @@
 // API service for communicating with the Java backend
 const API_BASE_URL = 'https://app-backend-y7teeb42qtz4k.azurewebsites.net/api'
 
+export { API_BASE_URL }
+
 export type Color = 'red' | 'blue' | 'green' | 'yellow' | 'purple' | 'cyan'
 
 export interface Feedback {

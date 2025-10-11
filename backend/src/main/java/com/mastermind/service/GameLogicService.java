@@ -149,6 +149,11 @@ public class GameLogicService {
         List<Color> colors = getAvailableColors();
         int colorCount = colors.size();
 
+        // If no previous attempts, return a random guess instead of always starting with four reds
+        if (guessAttempts.isEmpty()) {
+            return generateSecret(slotCount);
+        }
+
         // Generate all possible guesses (cartesian product)
         int[] indices = new int[slotCount];
         while (true) {

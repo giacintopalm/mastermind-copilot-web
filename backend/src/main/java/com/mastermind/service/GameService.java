@@ -56,6 +56,25 @@ public class GameService {
     }
 
     /**
+     * Create a new game with a custom secret.
+     * 
+     * @param slotCount Number of slots in the secret code
+     * @param customSecret The custom secret to use for the game
+     * @return A new Game instance with the specified secret
+     * @throws IllegalArgumentException if the custom secret is invalid
+     */
+    public Game createGameWithSecret(int slotCount, List<Color> customSecret) {
+        if (!gameLogicService.isValidGuess(customSecret, slotCount)) {
+            throw new IllegalArgumentException("Invalid custom secret: must contain " + 
+                                             slotCount + " valid colors");
+        }
+        
+        Game game = new Game(customSecret, slotCount);
+        activeGames.put(game.getId(), game);
+        return game;
+    }
+
+    /**
      * Get an existing game by ID.
      * 
      * @param gameId The unique game identifier

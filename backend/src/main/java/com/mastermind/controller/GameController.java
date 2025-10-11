@@ -41,7 +41,7 @@ public class GameController {
      * 
      * POST /api/games
      * 
-     * @param request Optional request body with game settings
+     * @param request Optional request body with game settings and optional custom secret
      * @return The created game (without secret)
      */
     @PostMapping
@@ -50,8 +50,26 @@ public class GameController {
             logger.debug("Creating new game with request: {}", request);
             
             Game game;
-            if (request != null && request.getSlotCount() != null) {
-                game = gameService.createGame(request.getSlotCount());
+            if (request != null) {
+                int slotCount = request.getSlotCount() != null ? request.getSlotCount() : 4;
+                
+                if (request.getSecret() != null && !request.getSecret().isEmpty()) {
+                    // Create game with custom secret
+                    List<Color> customSecret = request.getSecret().stream()
+                        .map(colorStr -> {
+                            try {
+                                return Color.valueOf(colorStr.toUpperCase());
+                            } catch (IllegalArgumentException e) {
+                                throw new IllegalArgumentException("Invalid color: " + colorStr);
+                            }
+                        })
+                        .collect(Collectors.toList());
+                    
+                    game = gameService.createGameWithSecret(slotCount, customSecret);
+                } else {
+                    // Create game with random secret
+                    game = gameService.createGame(slotCount);
+                }
             } else {
                 game = gameService.createGame();
             }
