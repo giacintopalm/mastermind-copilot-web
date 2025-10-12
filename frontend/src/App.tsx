@@ -77,6 +77,18 @@ export default function App() {
     }
   }, [gameMode])
 
+  // Auto-trigger computer moves
+  useEffect(() => {
+    if (gameMode === 'computer' && 
+        gamePhase === 'playing' && 
+        currentTurn === 'computer' && 
+        !computerThinking && 
+        computerGameState && 
+        !computerGameOver) {
+      makeComputerGuess()
+    }
+  }, [gameMode, gamePhase, currentTurn, computerThinking, computerGameState, computerGameOver])
+
   async function createNewGame() {
     try {
       setLoading(true)
@@ -254,9 +266,6 @@ export default function App() {
     try {
       setComputerThinking(true)
       setError(null)
-      
-      // Simulate thinking time
-      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 2000))
       
       const suggestion = await gameApi.getSuggestedGuess(computerGameState.id)
       
@@ -549,7 +558,6 @@ export default function App() {
           </section>
           
           <div className="palette">
-            <h3>Colors</h3>
             {PALETTE.map((c) => (
               <button
                 key={c}
@@ -694,7 +702,6 @@ export default function App() {
         </section>
         
         <div className="palette">
-          <h3>Colors</h3>
           {PALETTE.map((c) => (
             <button
               key={c}
@@ -761,7 +768,6 @@ export default function App() {
         <div className="turn-indicator">
           <h2>
             {currentTurn === 'user' ? "Your Turn" : "Computer's Turn"}
-            {currentTurn === 'computer' && computerThinking && " (Thinking...)"}
           </h2>
         </div>
         
@@ -773,7 +779,6 @@ export default function App() {
         </div>
         
         <div className="shared-palette">
-          <h3>Colors</h3>
           {PALETTE.map((c) => (
             <button
               key={c}
@@ -861,13 +866,13 @@ export default function App() {
                   </>
                 )}
                 {player === 'computer' && (
-                  <button
-                    className="primary"
-                    onClick={onSubmit}
-                    disabled={!isComputerTurn || computerThinking}
-                  >
-                    {computerThinking ? 'Thinking...' : 'Computer Turn'}
-                  </button>
+                  <div className="actions">
+                    {computerThinking && (
+                      <span className="loading-message" style={{margin: 0, padding: '8px 12px', fontSize: '14px'}}>
+                        Making move...
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
