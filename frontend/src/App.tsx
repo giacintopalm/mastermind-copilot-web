@@ -30,6 +30,7 @@ export default function App() {
   
   // Common state
   const [loading, setLoading] = useState(false)
+  const [suggestLoading, setSuggestLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const win = useMemo(() => {
@@ -298,10 +299,10 @@ export default function App() {
   }
 
   async function getSuggestion() {
-    if (gameOver || loading || !gameState) return
+    if (gameOver || loading || suggestLoading || !gameState) return
     
     try {
-      setLoading(true)
+      setSuggestLoading(true)
       setError(null)
       const suggestion = await gameApi.getSuggestedGuess(gameState.id)
       
@@ -317,7 +318,7 @@ export default function App() {
       setError(message)
       console.error('Error getting suggestion:', err)
     } finally {
-      setLoading(false)
+      setSuggestLoading(false)
     }
   }
 
@@ -547,9 +548,9 @@ export default function App() {
                   <button
                     className="primary"
                     onClick={getSuggestion}
-                    disabled={gameOver || loading}
+                    disabled={gameOver || loading || suggestLoading}
                   >
-                    {loading ? 'Getting suggestion...' : 'Suggest'}
+                    {suggestLoading ? 'Getting suggestion...' : 'Suggest'}
                   </button>
                 </div>
                 </div>
@@ -754,9 +755,9 @@ export default function App() {
         
         <div className="dual-board-summary">
           {renderPlayerBoard('Your Game', gameState, current, selectedSlot, 
-            submitGuess, getSuggestion, 'user', secret, loadGameSolution)}
+            submitGuess, getSuggestion, 'user', secret, loadGameSolution, suggestLoading)}
           {renderPlayerBoard('Computer Game', computerGameState, [], null, 
-            () => {}, () => {}, 'computer', computerGameSolution, loadComputerGameSolution)}
+            () => {}, () => {}, 'computer', computerGameSolution, loadComputerGameSolution, false)}
         </div>
       </div>
     )
@@ -773,9 +774,9 @@ export default function App() {
         
         <div className="dual-board">
           {renderPlayerBoard('Your Game', gameState, current, selectedSlot, 
-            submitGuess, getSuggestion, 'user', secret, loadGameSolution)}
+            submitGuess, getSuggestion, 'user', secret, loadGameSolution, suggestLoading)}
           {renderPlayerBoard('Computer Game', computerGameState, [], null, 
-            makeComputerGuess, () => {}, 'computer', computerGameSolution, loadComputerGameSolution)}
+            makeComputerGuess, () => {}, 'computer', computerGameSolution, loadComputerGameSolution, false)}
         </div>
         
         <div className="shared-palette">
@@ -803,7 +804,8 @@ export default function App() {
     onSuggest: () => void,
     player: 'user' | 'computer',
     solution: Color[],
-    loadSolution: () => void
+    loadSolution: () => void,
+    suggestLoading: boolean
   ) {
     const isUserTurn = currentTurn === 'user' && player === 'user'
     const isComputerTurn = currentTurn === 'computer' && player === 'computer'
@@ -857,9 +859,9 @@ export default function App() {
                 <button
                   className="primary"
                   onClick={onSuggest}
-                  disabled={!isUserTurn || loading}
+                  disabled={!isUserTurn || loading || suggestLoading}
                 >
-                  {loading ? 'Getting suggestion...' : 'Suggest'}
+                  {suggestLoading ? 'Getting suggestion...' : 'Suggest'}
                 </button>
               </div>
             </div>
