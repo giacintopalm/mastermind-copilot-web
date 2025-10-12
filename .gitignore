@@ -40,7 +40,3 @@ mastermind-*.zip
 
 # TypeScript build info
 tsconfig.tsbuildinfo
-
-# Package locks (keep package.json but not locks)
-package-lock.json
-yarn.lock
