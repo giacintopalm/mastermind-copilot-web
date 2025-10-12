@@ -108,6 +108,11 @@ header{
   flex: 1;
   min-width: 100px;
 }
+
+.mode-selector button.primary,
+.mode-selector button.secondary {
+  text-transform: none !important;
+}
 h1{
   font-size: clamp(20px, 5vw, 30px);
   margin:0;
@@ -132,7 +137,7 @@ button{cursor:pointer;border:none}
 button.primary{
   background:#61371f;
   color:#f8d7a8;
-  padding: clamp(4px, 1.5vw, 6px) clamp(8px, 2.5vw, 10px);
+  padding: clamp(4px, 1.5vw, 6px) clamp(6px, 2vw, 8px);
   border-radius:6px;
   font-weight: bold;
   text-transform: uppercase;
@@ -143,10 +148,10 @@ button.primary{
   top: 0;
   white-space: nowrap;
   text-align: center;
-  font-size: clamp(10px, 2.2vw, 11px);
+  font-size: clamp(9px, 2vw, 10px);
   letter-spacing: 0.5px;
-  min-width: 80px;
-  flex: 1;
+  min-width: 60px;
+  flex: 0 0 auto;
 }
 button.primary:active {
   box-shadow: 0 1px 0 #4e2d18, 0 2px 3px rgba(0,0,0,0.3);
@@ -169,6 +174,29 @@ button.secondary:active {
   box-shadow: 0 1px 0 #6d574a, 0 2px 3px rgba(0,0,0,0.2);
   top: 2px;
 }
+
+button.action-button {
+  background: #5c4033;
+  border: 2px solid #4a3228;
+  border-radius: 8px;
+  padding: clamp(8px, 2.5vw, 10px) clamp(16px, 4vw, 20px);
+  font-size: clamp(11px, 2.3vw, 13px);
+  font-weight: normal;
+  margin-left: clamp(12px, 3vw, 16px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  text-transform: none !important;
+}
+
+button.action-button:hover {
+  background: #6b4d40;
+  transform: translateY(-1px);
+}
+
+button.action-button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
 section{
   background:var(--panel);
   border-radius:8px;
@@ -282,12 +310,12 @@ section{
 .actions{
   display:flex;
   align-items:center;
-  gap: clamp(4px, 1.5vw, 6px);
+  gap: 3px;
   margin-top: 0;
-  flex-wrap: wrap;
   justify-content: flex-start;
   width: auto;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 /* Mobile actions layout */
@@ -455,8 +483,8 @@ section{
 .guess-container {
   display: flex;
   align-items: center;
-  gap: clamp(8px, 3vw, 16px);
-  padding: clamp(8px, 2.5vw, 12px);
+  gap: clamp(4px, 1.5vw, 8px);
+  padding: clamp(6px, 2vw, 10px);
   background: #d8c0a8;
   border-radius: 0;
   margin-bottom: 0;
@@ -467,6 +495,8 @@ section{
   min-width: 0;
   max-width: 100%;
   min-height: clamp(48px, 15vw, 64px);
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 /* Mobile guess container adjustments */
@@ -493,13 +523,14 @@ section{
 .history-item {
   display: flex;
   align-items: center;
-  gap: clamp(8px, 3vw, 16px);
-  padding: clamp(8px, 2.5vw, 12px);
+  gap: clamp(4px, 1.5vw, 8px);
+  padding: clamp(6px, 2vw, 10px);
   background: #d8c0a8;
   border-radius: 0;
   border-bottom: 1px solid #8b6f5c;
-  flex-wrap: wrap;
   min-height: clamp(48px, 15vw, 64px);
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 /* Mobile history item layout */
@@ -520,19 +551,24 @@ section{
 
 .history-item .slots, .guess-container .slots {
   flex-grow: 0; 
+  flex-shrink: 0;
   flex-basis: auto;
   max-width: 100%;
+  min-width: 0;
 }
 .attempt-number{
   font-size:14px;
   font-weight:bold;
   color:var(--text);
   width:30px;
+  min-width:30px;
   text-align:center;
   background: #a18162;
   height: 30px;
   line-height: 30px;
   border-radius: 50%;
+  flex-shrink: 0;
+  flex-grow: 0;
 }
 .attempt-number.current{
   font-size:16px;
@@ -542,13 +578,16 @@ section{
 .feedback{
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  grid-gap: 8px;
-  width: 60px;
-  padding: 8px;
+  grid-gap: 6px;
+  width: 56px;
+  min-width: 56px;
+  padding: 6px;
   background: #b69b82;
   border-radius: 5px;
   border: 1px solid #8b6f5c;
   margin-left: auto;
+  flex-shrink: 0;
+  flex-grow: 0;
 }
 .peg{
   display:inline-block;

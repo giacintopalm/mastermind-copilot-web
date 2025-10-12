@@ -475,10 +475,10 @@ export default function App() {
               onClick={() => setGameMode('computer')}
               disabled={loading}
             >
-              vs Computer
+              Vs Computer
             </button>
           </div>
-          <button className="secondary" onClick={resetGame} disabled={loading}>
+          <button className="secondary action-button" onClick={resetGame} disabled={loading}>
             New Game
           </button>
         </div>
@@ -820,7 +820,7 @@ export default function App() {
           {playerGameOver && !playerWin && <span className="board-status lose">✗ Failed</span>}
         </div>
         <div className="section-content">
-          {gamePhase === 'playing' && !playerGameOver && (
+          {gamePhase === 'playing' && !playerGameOver && player === 'user' && (
             <div className="guess-container">
               <div className="attempt-number current">?</div>
               <div className="slots">
@@ -847,35 +847,30 @@ export default function App() {
               </div>
               
               <div className="actions">
-                {player === 'user' && (
-                  <>
-                    <button
-                      className="primary"
-                      onClick={onSubmit}
-                      disabled={!isUserTurn || loading || currentGuess.some((c) => c == null)}
-                    >
-                      {loading ? 'Submitting...' : 'Submit'}
-                    </button>
-                    <button
-                      className="primary"
-                      onClick={onSuggest}
-                      disabled={!isUserTurn || loading}
-                    >
-                      {loading ? 'Getting suggestion...' : 'Suggest'}
-                    </button>
-                  </>
-                )}
-                {player === 'computer' && (
-                  <div className="actions">
-                    {computerThinking && (
-                      <span className="loading-message" style={{margin: 0, padding: '8px 12px', fontSize: '14px'}}>
-                        Making move...
-                      </span>
-                    )}
-                  </div>
-                )}
+                <button
+                  className="primary"
+                  onClick={onSubmit}
+                  disabled={!isUserTurn || loading || currentGuess.some((c) => c == null)}
+                >
+                  {loading ? 'Submitting...' : 'Submit'}
+                </button>
+                <button
+                  className="primary"
+                  onClick={onSuggest}
+                  disabled={!isUserTurn || loading}
+                >
+                  {loading ? 'Getting suggestion...' : 'Suggest'}
+                </button>
               </div>
             </div>
+          )}
+          
+          {/* Computer spacer to align with user's guess container */}
+          {gamePhase === 'playing' && !playerGameOver && player === 'computer' && (
+            <div className="guess-container-spacer" style={{
+              minHeight: 'clamp(48px, 15vw, 64px)', 
+              marginBottom: '0'
+            }}></div>
           )}
 
           {/* History */}
