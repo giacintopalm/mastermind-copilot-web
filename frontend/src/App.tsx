@@ -420,6 +420,35 @@ export default function App() {
     }
   }
 
+  function handleRemoveDrop(e: DragEvent<HTMLDivElement>) {
+    if (gameOver) return
+    e.preventDefault()
+    e.stopPropagation()
+    console.log('Drop on remove zone') // Debug log
+    
+    try {
+      // Get the transferred data
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'))
+      const { fromSlot } = data
+      console.log('Drop data:', data) // Debug log
+      
+      // Only remove if dragged from a slot (not from palette)
+      if (fromSlot !== null && fromSlot !== undefined) {
+        console.log('Removing from slot:', fromSlot) // Debug log
+        clearSlot(fromSlot)
+      }
+    } catch (err) {
+      console.error('Error processing remove drop:', err)
+    }
+  }
+
+  function handleRemoveDragOver(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'move'
+    console.log('Drag over remove zone') // Debug log
+  }
+
   // Drag handlers for computer secret setting
   function handleComputerSecretDragOver(e: DragEvent<HTMLButtonElement>) {
     if (gamePhase !== 'setup') return
@@ -558,17 +587,27 @@ export default function App() {
             </div>
           </section>
           
-          <div className="palette">
-            {PALETTE.map((c) => (
-              <button
-                key={c}
-                className={`color ${c}`}
-                onClick={() => chooseColor(c)}
-                draggable
-                onDragStart={(e) => handleDragStart(e, c)}
-                title={`Pick ${c}`}
-              />
-            ))}
+          <div className="palette-container">
+            <div 
+              className="remove-drop-zone"
+              onDragOver={handleRemoveDragOver}
+              onDrop={handleRemoveDrop}
+              title="Drop a peg here to remove it"
+            >
+              {/* Drop zone positioned left of palette */}
+            </div>
+            <div className="palette">
+              {PALETTE.map((c) => (
+                <button
+                  key={c}
+                  className={`color ${c}`}
+                  onClick={() => chooseColor(c)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, c)}
+                  title={`Pick ${c}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
         

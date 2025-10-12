@@ -238,10 +238,10 @@ section{
   width:var(--size);
   height:var(--size);
   border-radius:50%;
-  background:#e9ecef;
-  border:2px solid #756055;
+  background:rgba(233, 236, 239, 0.3);
+  border:3px solid #756055;
   transition:transform .06s,box-shadow .06s;
-  box-shadow:inset 0 -3px 5px rgba(0,0,0,0.2), inset 0 3px 3px rgba(255,255,255,0.7);
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,0.1), inset 0 2px 2px rgba(255,255,255,0.3);
   position: relative;
   flex-shrink: 0;
 }
@@ -318,6 +318,48 @@ section{
   min-width: 0;
 }
 
+/* Palette container with drop zone */
+.palette-container {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  width: 100%;
+  margin-top: 20px;
+  min-height: 280px;
+}
+
+.remove-drop-zone {
+  flex: 1;
+  padding: 60px 30px;
+  background: transparent;
+  border: none;
+  text-align: center;
+  color: transparent;
+  font-size: 0;
+  transition: none;
+  cursor: default;
+  user-select: none;
+  height: 300px !important;
+  max-height: none !important;
+  position: relative;
+  z-index: 1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Debug mode - commented out for clean UI */
+/*
+.remove-drop-zone {
+  background: rgba(255, 0, 0, 0.2) !important;
+  border: 2px dashed red !important;
+  height: 300px !important;
+  min-height: 300px !important;
+}
+*/
+
 /* Mobile actions layout */
 @media (max-width: 768px) {
   .actions {
@@ -390,6 +432,24 @@ section{
   flex-shrink: 0;
   width: auto;
   min-width: 120px;
+}
+
+/* Mobile adjustments for palette container */
+@media (max-width: 768px) {
+  .palette-container {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .remove-drop-zone {
+    height: 200px !important;
+    min-height: 200px !important;
+    order: 2; /* Put drop zone below palette on mobile */
+  }
+  
+  .palette {
+    order: 1; /* Put palette above drop zone on mobile */
+  }
 }
 
 /* Improved mobile responsive design */
