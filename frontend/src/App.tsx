@@ -622,17 +622,19 @@ export default function App() {
               }
             }}>
               <summary>Show solution (spoiler)</summary>
-              <div className="solution-item">
-                <div className="attempt-number solution-number">✓</div>
-                <div className="slots small solution-slots">
-                  {secret.map((c, i) => (
-                    <span key={i} className={`slot ${c.toLowerCase()}`} />
-                  ))}
-                </div>
-                <div className="feedback solution-feedback">
-                  <span className="solution-text">Secret Code</span>
-                </div>
-              </div>
+              <ul className="history">
+                <li className="history-item">
+                  <div className="attempt-number solution-number">✓</div>
+                  <div className="slots small">
+                    {secret.map((c, i) => (
+                      <span key={i} className={`slot ${c.toLowerCase()}`} />
+                    ))}
+                  </div>
+                  <div className="feedback">
+                    <span className="solution-text">Secret Code</span>
+                  </div>
+                </li>
+              </ul>
             </details>
           </div>
         </section>
@@ -910,17 +912,19 @@ export default function App() {
                 }
               }}>
                 <summary>Show solution (spoiler)</summary>
-                <div className="solution-item">
-                  <div className="attempt-number solution-number">✓</div>
-                  <div className="slots small solution-slots">
-                    {solution.map((c, i) => (
-                      <span key={i} className={`slot ${c.toLowerCase()}`} />
-                    ))}
-                  </div>
-                  <div className="feedback solution-feedback">
-                    <span className="solution-text">Secret Code</span>
-                  </div>
-                </div>
+                <ul className="history">
+                  <li className="history-item">
+                    <div className="attempt-number solution-number">✓</div>
+                    <div className="slots small">
+                      {solution.map((c, i) => (
+                        <span key={i} className={`slot ${c.toLowerCase()}`} />
+                      ))}
+                    </div>
+                    <div className="feedback">
+                      <span className="solution-text">Secret Code</span>
+                    </div>
+                  </li>
+                </ul>
               </details>
             </div>
           )}
