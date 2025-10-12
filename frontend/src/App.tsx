@@ -630,7 +630,7 @@ export default function App() {
                       <span key={i} className={`slot ${c.toLowerCase()}`} />
                     ))}
                   </div>
-                  <div className="feedback">
+                  <div className="feedback solution-feedback">
                     <span className="solution-text">Secret Code</span>
                   </div>
                 </li>
@@ -920,7 +920,7 @@ export default function App() {
                         <span key={i} className={`slot ${c.toLowerCase()}`} />
                       ))}
                     </div>
-                    <div className="feedback">
+                    <div className="feedback solution-feedback">
                       <span className="solution-text">Secret Code</span>
                     </div>
                   </li>
