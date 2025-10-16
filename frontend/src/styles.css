@@ -250,8 +250,8 @@ section{
   outline-offset: clamp(2px, 0.5vw, 3px);
 }
 .slot[draggable=true]:hover{cursor:grab}
-/* All slots now use same size */
-.slots.small .slot{width:var(--size);height:var(--size)}
+/* All slots now use same size as palette balls */
+.slots.small .slot{width: clamp(40px, 10vw, 50px); height: clamp(40px, 10vw, 50px);}
 .slots {margin-left: clamp(4px, 2vw, 8px);}
 
 .palette{
@@ -540,6 +540,7 @@ section{
 .history-item {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: clamp(4px, 1.5vw, 8px);
   padding: clamp(6px, 2vw, 10px);
   background: #d8c0a8;
