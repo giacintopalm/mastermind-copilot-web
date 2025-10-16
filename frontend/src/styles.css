@@ -235,8 +235,8 @@ section{
   justify-content: center;
 }
 .slot{
-  width:var(--size);
-  height:var(--size);
+  width: clamp(40px, 10vw, 50px);
+  height: clamp(40px, 10vw, 50px);
   border-radius:50%;
   background:rgba(233, 236, 239, 0.3);
   border:3px solid #756055;
@@ -326,6 +326,7 @@ section{
   width: 100%;
   margin-top: 20px;
   min-height: 280px;
+  justify-content: center;
 }
 
 .remove-drop-zone {
@@ -411,28 +412,6 @@ section{
   text-align: center;
 }
 .history{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
-.main-game-layout {
-  display: flex;
-  align-items: flex-start;
-  gap: clamp(16px, 4vw, 32px);
-  margin-bottom: clamp(16px, 4vw, 24px);
-  flex-wrap: wrap;
-}
-
-.main-game-layout .guess-section {
-  flex: 2;
-  min-width: min(400px, 100%);
-  max-width: none;
-}
-
-.main-game-layout .palette {
-  align-self: flex-start;
-  position: sticky;
-  top: 20px;
-  flex-shrink: 0;
-  width: auto;
-  min-width: 120px;
-}
 
 /* Mobile adjustments for palette container */
 @media (max-width: 768px) {
@@ -459,25 +438,6 @@ section{
     padding: var(--padding-mobile);
   }
   
-  .main-game-layout {
-    flex-direction: column;
-    gap: 20px;
-    align-items: stretch;
-  }
-  
-  .main-game-layout .guess-section {
-    min-width: auto;
-    width: 100%;
-  }
-  
-  .main-game-layout .palette {
-    position: static;
-    align-self: center;
-    width: 100%;
-    max-width: none;
-    order: -1; /* Move palette above game on mobile */
-  }
-  
   .game-layout {
     flex-direction: column;
     align-items: stretch;
@@ -490,10 +450,6 @@ section{
 
 /* Very small mobile devices */
 @media (max-width: 480px) {
-  .main-game-layout .palette {
-    min-width: auto;
-  }
-  
   .palette {
     padding: 12px !important;
   }
@@ -543,6 +499,7 @@ section{
 .guess-container {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: clamp(4px, 1.5vw, 8px);
   padding: clamp(6px, 2vw, 10px);
   background: #d8c0a8;
@@ -761,17 +718,8 @@ section{
 }
 
 /* Computer Mode Styles */
-.computer-setup {
-  display: flex;
-  align-items: flex-start;
-  gap: 32px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-
 .setup-section {
-  flex: 2;
-  min-width: 400px;
+  margin-bottom: 24px;
 }
 
 .setup-instruction {
@@ -1035,14 +983,6 @@ section{
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  
-  .computer-setup {
-    flex-direction: column;
-  }
-  
-  .setup-section {
-    min-width: auto;
-  }
 }
 
 /* Tablet and large mobile responsive design */
@@ -1118,22 +1058,6 @@ section{
 
 /* Landscape orientation on mobile */
 @media (max-width: 900px) and (orientation: landscape) {
-  .main-game-layout {
-    flex-direction: row;
-    align-items: flex-start;
-  }
-  
-  .main-game-layout .palette {
-    order: 0;
-    width: auto;
-    min-width: 140px;
-    max-width: 200px;
-  }
-  
-  .main-game-layout .guess-section {
-    flex: 1;
-  }
-  
   .dual-board {
     grid-template-columns: 1fr 1fr;
   }

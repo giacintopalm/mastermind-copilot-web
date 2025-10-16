@@ -535,80 +535,68 @@ export default function App() {
   function renderSoloMode() {
     return (
       <>
-        <div className="main-game-layout">
-          <section className="guess-section">
-            <div className="section-header">
-              <h2>Your Guess</h2>
-            </div>
-            <div className="section-content">
-              <div className="game-layout">
-                <div className="guess-container">
-                  <div className="attempt-number current">?</div>
-                  <div className="slots">
-                  {Array.from({ length: SLOT_COUNT }).map((_, i) => {
-                    const c = current[i]
-                    return (
-                      <button
-                        key={i}
-                        className={`slot ${c ?? ''} ${selectedSlot === i ? 'selected' : ''}`}
-                        onClick={() => setSelectedSlot(i)}
-                        draggable={c !== null}
-                        onDragStart={(e) => handleDragStart(e, c, i)}
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, i)}
-                        onContextMenu={(e: MouseEvent<HTMLButtonElement>) => {
-                          e.preventDefault()
-                          clearSlot(i)
-                        }}
-                        title={c ? `Slot ${i + 1}: ${c}` : `Slot ${i + 1}: empty (right-click to clear)`}
-                      />
-                    )
-                  })}
-                </div>
-                
-                <div className="actions">
-                  <button
-                    className="primary"
-                    onClick={submitGuess}
-                    disabled={gameOver || loading || current.some((c) => c == null)}
-                  >
-                    {loading ? 'Submitting...' : 'Submit'}
-                  </button>
-                  <button
-                    className="primary"
-                    onClick={getSuggestion}
-                    disabled={gameOver || loading || suggestLoading}
-                  >
-                    {suggestLoading ? 'Getting suggestion...' : 'Suggest'}
-                  </button>
-                </div>
-                </div>
+        <section className="guess-section">
+          <div className="section-header">
+            <h2>Your Guess</h2>
+          </div>
+          <div className="section-content">
+            <div className="game-layout">
+              <div className="guess-container">
+                <div className="attempt-number current">?</div>
+                <div className="slots">
+                {Array.from({ length: SLOT_COUNT }).map((_, i) => {
+                  const c = current[i]
+                  return (
+                    <button
+                      key={i}
+                      className={`slot ${c ?? ''} ${selectedSlot === i ? 'selected' : ''}`}
+                      onClick={() => setSelectedSlot(i)}
+                      draggable={c !== null}
+                      onDragStart={(e) => handleDragStart(e, c, i)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, i)}
+                      onContextMenu={(e: MouseEvent<HTMLButtonElement>) => {
+                        e.preventDefault()
+                        clearSlot(i)
+                      }}
+                      title={c ? `Slot ${i + 1}: ${c}` : `Slot ${i + 1}: empty (right-click to clear)`}
+                    />
+                  )
+                })}
+              </div>
+              
+              <div className="actions">
+                <button
+                  className="primary"
+                  onClick={submitGuess}
+                  disabled={gameOver || loading || current.some((c) => c == null)}
+                >
+                  {loading ? 'Submitting...' : 'Submit'}
+                </button>
+                <button
+                  className="primary"
+                  onClick={getSuggestion}
+                  disabled={gameOver || loading || suggestLoading}
+                >
+                  {suggestLoading ? 'Getting suggestion...' : 'Suggest'}
+                </button>
+              </div>
               </div>
             </div>
-          </section>
-          
-          <div className="palette-container">
-            <div 
-              className="remove-drop-zone"
-              onDragOver={handleRemoveDragOver}
-              onDrop={handleRemoveDrop}
-              title="Drop a peg here to remove it"
-            >
-              {/* Drop zone positioned left of palette */}
-            </div>
-            <div className="palette">
-              {PALETTE.map((c) => (
-                <button
-                  key={c}
-                  className={`color ${c}`}
-                  onClick={() => chooseColor(c)}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, c)}
-                  title={`Pick ${c}`}
-                />
-              ))}
-            </div>
           </div>
+        </section>
+        
+        <div className="shared-palette">
+          {PALETTE.map((c) => (
+            <button
+              key={c}
+              className={`color ${c}`}
+              onClick={() => chooseColor(c)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, c)}
+              title={`Pick ${c}`}
+            />
+          ))}
         </div>
         
         {gameOver && (
@@ -695,7 +683,7 @@ export default function App() {
 
   function renderComputerSetup() {
     return (
-      <div className="computer-setup">
+      <>
         <section className="setup-section">
           <div className="section-header">
             <h2>Set Computer's Target</h2>
@@ -743,7 +731,7 @@ export default function App() {
           </div>
         </section>
         
-        <div className="palette">
+        <div className="shared-palette">
           {PALETTE.map((c) => (
             <button
               key={c}
@@ -755,7 +743,7 @@ export default function App() {
             />
           ))}
         </div>
-      </div>
+      </>
     )
   }
 
