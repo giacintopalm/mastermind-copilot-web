@@ -315,10 +315,8 @@ section{
   margin-left: auto;
   justify-content: flex-end;
   width: auto;
-  min-width: 70px;
   flex-shrink: 0;
-  flex-grow: 1;
-  max-width: 70px;
+  flex-grow: 0;
 }
 
 /* Palette container with drop zone */
@@ -505,6 +503,7 @@ section{
   justify-content: center;
   gap: clamp(4px, 1.5vw, 8px);
   padding: clamp(6px, 2vw, 10px);
+  padding-left: 50px;
   background: #d8c0a8;
   border-radius: 0;
   margin-bottom: 0;
@@ -516,7 +515,8 @@ section{
   max-width: 100%;
   min-height: clamp(48px, 15vw, 64px);
   flex-wrap: nowrap;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
 }
 
 /* Mobile guess container adjustments */
@@ -546,12 +546,14 @@ section{
   justify-content: center;
   gap: clamp(4px, 1.5vw, 8px);
   padding: clamp(6px, 2vw, 10px);
+  padding-left: 50px;
   background: #d8c0a8;
   border-radius: 0;
   border-bottom: 1px solid #8b6f5c;
   min-height: clamp(48px, 15vw, 64px);
   flex-wrap: nowrap;
   overflow: hidden;
+  position: relative;
 }
 
 /* Mobile history item layout */
@@ -589,10 +591,10 @@ section{
   line-height: 30px;
   border-radius: 50%;
   flex-shrink: 0;
-  flex-grow: 1;
-  margin-right: auto;
+  flex-grow: 0;
+  position: absolute;
+  left: 0px;
   align-self: center;
-  max-width: 70px;
 }
 .attempt-number.current{
   font-size:16px;
@@ -604,15 +606,14 @@ section{
   grid-template-columns: repeat(2, 1fr);
   grid-gap: 6px;
   width: 56px;
-  min-width: 70px;
+  min-width: 56px;
   padding: 6px;
   background: #b69b82;
   border-radius: 5px;
   border: 1px solid #8b6f5c;
   margin-left: auto;
   flex-shrink: 0;
-  flex-grow: 1;
-  max-width: 70px;
+  flex-grow: 0;
   justify-items: center;
 }
 .peg{
@@ -780,7 +781,7 @@ section{
   border-radius: 8px;
   overflow: visible;
   transition: border-color 0.3s ease;
-  min-width: min(320px, 100%);
+  min-width: min(480px, 100%);
   width: 100%;
 }
 
