@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import type { MouseEvent, DragEvent } from 'react'
 import { gameApi, Color, GameState, GuessAttempt, ApiError, API_BASE_URL } from './api'
+// import SockJS from 'sockjs-client'
+// import { Client, Message } from '@stomp/stompjs'
 
 const PALETTE: Color[] = ['red', 'blue', 'green', 'yellow', 'purple', 'cyan']
 const SLOT_COUNT = 4
 
-type GameMode = 'solo' | 'computer'
+type GameMode = 'solo' | 'computer' | 'multiplayer'
 type GamePhase = 'setup' | 'playing' | 'finished'
 type Turn = 'user' | 'computer'
 
@@ -27,6 +29,12 @@ export default function App() {
   const [selectedComputerSecretSlot, setSelectedComputerSecretSlot] = useState<number | null>(0)
   const [computerThinking, setComputerThinking] = useState(false)
   const [computerGameSolution, setComputerGameSolution] = useState<Color[]>([])
+  
+  // Multiplayer state
+  const [multiplayerSession, setMultiplayerSession] = useState<{sessionId: string, nickname: string} | null>(null)
+  const [activePlayers, setActivePlayers] = useState<Array<{sessionId: string, nickname: string, status: string}>>([])
+  const [showNicknamePrompt, setShowNicknamePrompt] = useState(false)
+  // const stompClientRef = useRef<Client | null>(null)
   
   // Common state
   const [loading, setLoading] = useState(false)
@@ -89,6 +97,69 @@ export default function App() {
       makeComputerGuess()
     }
   }, [gameMode, gamePhase, currentTurn, computerThinking, computerGameState, computerGameOver])
+
+  // WebSocket connection for multiplayer
+  useEffect(() => {
+    if (!multiplayerSession) {
+      return
+    }
+
+    // TODO: Reconnect WebSocket when imports are fixed
+    // Create WebSocket connection
+    // const socket = new SockJS(`${API_BASE_URL}/ws`)
+    // const client = new Client({
+    //   webSocketFactory: () => socket as any,
+    //   onConnect: () => {
+    //     console.log('WebSocket connected')
+    //     
+    //     // Subscribe to player list updates
+    //     client.subscribe('/topic/players', (message: Message) => {
+    //       try {
+    //         const playerList = JSON.parse(message.body)
+    //         setActivePlayers(playerList.players || [])
+    //       } catch (err) {
+    //         console.error('Failed to parse player list:', err)
+    //       }
+    //     })
+
+    //     // Request initial player list
+    //     fetchPlayerList()
+    //   },
+    //   onDisconnect: () => {
+    //     console.log('WebSocket disconnected')
+    //   },
+    //   onStompError: (frame) => {
+    //     console.error('STOMP error:', frame)
+    //   }
+    // })
+
+    // client.activate()
+    // stompClientRef.current = client
+
+    // Cleanup on unmount or session change
+    // return () => {
+    //   if (stompClientRef.current) {
+    //     stompClientRef.current.deactivate()
+    //   }
+    // }
+
+    // Fetch initial player list without WebSocket for now
+    fetchPlayerList()
+  }, [multiplayerSession])
+
+  async function fetchPlayerList() {
+    if (!multiplayerSession) return
+    
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/multiplayer/players?exclude=${multiplayerSession.sessionId}`
+      )
+      const data = await response.json()
+      setActivePlayers(data.players || [])
+    } catch (err) {
+      console.error('Failed to fetch player list:', err)
+    }
+  }
 
   async function createNewGame() {
     try {
@@ -507,6 +578,13 @@ export default function App() {
             >
               Vs Computer
             </button>
+            <button 
+              className={gameMode === 'multiplayer' ? 'primary' : 'secondary'} 
+              onClick={() => setGameMode('multiplayer')}
+              disabled={loading}
+            >
+              Vs Other Player
+            </button>
           </div>
           <button className="secondary action-button" onClick={resetGame} disabled={loading}>
             New Game
@@ -515,7 +593,7 @@ export default function App() {
       </header>
 
       <main>
-        {gameMode === 'solo' ? renderSoloMode() : renderComputerMode()}
+        {gameMode === 'solo' ? renderSoloMode() : gameMode === 'computer' ? renderComputerMode() : renderMultiplayerMode()}
         
         {error && (
           <div className="error-message">
@@ -531,6 +609,146 @@ export default function App() {
       </main>
     </div>
   )
+
+  function renderMultiplayerMode() {
+    const handleNicknameSubmit = async (nickname: string) => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await fetch(`${API_BASE_URL}/api/multiplayer/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nickname })
+        })
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          setMultiplayerSession({ sessionId: data.sessionId, nickname: data.nickname })
+          setShowNicknamePrompt(false)
+        } else {
+          setError(data.message || 'Failed to login')
+        }
+      } catch (err) {
+        setError('Failed to connect to server')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    const handleLeaveLobby = async () => {
+      if (!multiplayerSession) return
+      
+      try {
+        await fetch(`${API_BASE_URL}/api/multiplayer/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: multiplayerSession.sessionId })
+        })
+      } catch (err) {
+        console.error('Failed to logout:', err)
+      } finally {
+        setMultiplayerSession(null)
+        setActivePlayers([])
+        setGameMode('solo')
+        setGamePhase('setup')
+      }
+    }
+
+    if (!multiplayerSession) {
+      return (
+        <div className="multiplayer-container">
+          <div className="nickname-prompt">
+            <h2>Join Multiplayer Lobby</h2>
+            <p>Enter your nickname to join the lobby and play against other players.</p>
+            <form 
+              className="nickname-form"
+              onSubmit={(e) => {
+                e.preventDefault()
+                const formData = new FormData(e.currentTarget)
+                const nickname = formData.get('nickname') as string
+                if (nickname && nickname.trim().length >= 3) {
+                  handleNicknameSubmit(nickname.trim())
+                }
+              }}
+            >
+              <input
+                className="nickname-input"
+                type="text"
+                name="nickname"
+                placeholder="Your nickname"
+                minLength={3}
+                maxLength={20}
+                pattern="[a-zA-Z0-9_-]+"
+                required
+                disabled={loading}
+              />
+              <button type="submit" className="primary" disabled={loading}>
+                {loading ? 'Joining...' : 'Join Lobby'}
+              </button>
+            </form>
+            <p style={{fontSize: '14px', color: 'var(--muted)', marginTop: '12px'}}>
+              Nickname must be 3-20 characters (letters, numbers, _ and - only)
+            </p>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="multiplayer-container">
+        <div className="multiplayer-lobby">
+          <div className="lobby-header">
+            <h2>Multiplayer Lobby</h2>
+            <p>Welcome, <strong>{multiplayerSession.nickname}</strong>!</p>
+          </div>
+          
+          <div className="players-section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3>Other Players ({activePlayers.length})</h3>
+              <button 
+                className="secondary" 
+                onClick={fetchPlayerList}
+                disabled={loading}
+                style={{ padding: '6px 12px', fontSize: '14px' }}
+              >
+                {loading ? 'Refreshing...' : '🔄 Refresh'}
+              </button>
+            </div>
+            {activePlayers.length === 0 ? (
+              <div className="empty-lobby">
+                <p>No other players logged in at the moment.</p>
+                <p style={{ fontSize: '14px', color: 'var(--muted)', marginTop: '8px' }}>
+                  Click Refresh to check for new players.
+                </p>
+              </div>
+            ) : (
+              <ul className="players-list">
+                {activePlayers.map(player => (
+                  <li key={player.sessionId} className="player-item">
+                    <span className="player-nickname">{player.nickname}</span>
+                    <span className={`player-status ${player.status.toLowerCase()}`}>
+                      {player.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          
+          <div className="lobby-actions">
+            <button 
+              className="secondary" 
+              onClick={handleLeaveLobby}
+            >
+              Leave Lobby
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   function renderSoloMode() {
     return (
