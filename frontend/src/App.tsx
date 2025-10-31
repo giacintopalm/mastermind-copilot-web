@@ -40,6 +40,12 @@ export default function App() {
   const [incomingInvitation, setIncomingInvitation] = useState<{invitationId: string, fromNickname: string} | null>(null)
   const [sentInvitation, setSentInvitation] = useState<{invitationId: string, toNickname: string} | null>(null)
   
+  // Multiplayer game state
+  const [multiplayerOpponent, setMultiplayerOpponent] = useState<string | null>(null)
+  const [multiplayerSecret, setMultiplayerSecret] = useState<Color[]>(Array(SLOT_COUNT).fill(null as unknown as Color))
+  const [selectedMultiplayerSecretSlot, setSelectedMultiplayerSecretSlot] = useState<number | null>(0)
+  const [multiplayerPhase, setMultiplayerPhase] = useState<'setup' | 'waiting' | 'playing' | 'finished'>('setup')
+  
   // Common state
   const [loading, setLoading] = useState(false)
   const [suggestLoading, setSuggestLoading] = useState(false)
@@ -138,9 +144,12 @@ export default function App() {
                 fromNickname: invitation.fromNickname
               })
             } else if (invitation.status === 'ACCEPTED' && invitation.fromNickname === multiplayerSession.nickname) {
-              // Your invitation was accepted
-              alert(`${invitation.toNickname} accepted your invitation! Game starting soon...`)
+              // Your invitation was accepted - start game setup
+              setMultiplayerOpponent(invitation.toNickname)
               setSentInvitation(null)
+              setMultiplayerPhase('setup')
+              setMultiplayerSecret(Array(SLOT_COUNT).fill(null as unknown as Color))
+              setSelectedMultiplayerSecretSlot(0)
             } else if (invitation.status === 'DECLINED' && invitation.fromNickname === multiplayerSession.nickname) {
               // Your invitation was declined
               alert(`${invitation.toNickname} declined your invitation.`)
@@ -236,9 +245,13 @@ export default function App() {
       if (response.ok) {
         const data = await response.json()
         console.log('Invitation accepted:', data)
+        
+        // Start multiplayer game setup
+        setMultiplayerOpponent(incomingInvitation.fromNickname)
         setIncomingInvitation(null)
-        alert(`Accepted invitation from ${incomingInvitation.fromNickname}! Game starting soon...`)
-        // TODO: Start multiplayer game
+        setMultiplayerPhase('setup')
+        setMultiplayerSecret(Array(SLOT_COUNT).fill(null as unknown as Color))
+        setSelectedMultiplayerSecretSlot(0)
       }
     } catch (err) {
       console.error('Failed to accept invitation:', err)
@@ -776,6 +789,33 @@ export default function App() {
       }
     }
 
+    // Show secret setup phase
+    if (multiplayerOpponent && multiplayerPhase === 'setup') {
+      return renderMultiplayerSecretSetup()
+    }
+
+    // Show waiting screen
+    if (multiplayerOpponent && multiplayerPhase === 'waiting') {
+      return (
+        <div className="multiplayer-container">
+          <div className="waiting-screen">
+            <h2>Waiting for {multiplayerOpponent}...</h2>
+            <p>You've set your secret code. Waiting for <strong>{multiplayerOpponent}</strong> to set theirs.</p>
+            <div className="loading-spinner">⏳</div>
+            <button 
+              className="secondary" 
+              onClick={() => {
+                setMultiplayerPhase('setup')
+                setMultiplayerOpponent(null)
+              }}
+            >
+              Cancel Game
+            </button>
+          </div>
+        </div>
+      )
+    }
+
     if (!multiplayerSession) {
       return (
         <div className="multiplayer-container">
@@ -1047,6 +1087,110 @@ export default function App() {
             </details>
           </div>
         </section>
+      </>
+    )
+  }
+
+  function renderMultiplayerSecretSetup() {
+    const handleSetSecret = () => {
+      if (multiplayerSecret.some((c) => c == null)) {
+        return
+      }
+      
+      // TODO: Send secret to backend and wait for opponent
+      setMultiplayerPhase('waiting')
+      console.log('Secret set:', multiplayerSecret)
+    }
+    
+    return (
+      <>
+        <section className="setup-section">
+          <div className="section-header">
+            <h2>Set {multiplayerOpponent}'s Target</h2>
+          </div>
+          <div className="section-content">
+            <p className="setup-instruction">
+              Choose a secret code for <strong>{multiplayerOpponent}</strong> to guess:
+            </p>
+            <div className="game-layout">
+              <div className="guess-container">
+                <div className="attempt-number current">🎯</div>
+                <div className="slots">
+                  {Array.from({ length: SLOT_COUNT }).map((_, i) => {
+                    const c = multiplayerSecret[i]
+                    return (
+                      <button
+                        key={i}
+                        className={`slot ${c ?? ''} ${selectedMultiplayerSecretSlot === i ? 'selected' : ''}`}
+                        onClick={() => setSelectedMultiplayerSecretSlot(i)}
+                        draggable={c !== null}
+                        onDragStart={(e) => handleDragStart(e, c, i)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          const draggedColor = e.dataTransfer.getData('color')
+                          if (draggedColor) {
+                            const newSecret = [...multiplayerSecret]
+                            newSecret[i] = draggedColor as Color
+                            setMultiplayerSecret(newSecret)
+                            setSelectedMultiplayerSecretSlot(i < SLOT_COUNT - 1 ? i + 1 : null)
+                          }
+                        }}
+                        onContextMenu={(e: MouseEvent<HTMLButtonElement>) => {
+                          e.preventDefault()
+                          const newSecret = [...multiplayerSecret]
+                          newSecret[i] = null as unknown as Color
+                          setMultiplayerSecret(newSecret)
+                        }}
+                        title={c ? `Slot ${i + 1}: ${c}` : `Slot ${i + 1}: empty (right-click to clear)`}
+                      />
+                    )
+                  })}
+                </div>
+                
+                <div className="actions">
+                  <button
+                    className="primary"
+                    onClick={handleSetSecret}
+                    disabled={loading || multiplayerSecret.some((c) => c == null)}
+                  >
+                    {loading ? 'Setting...' : 'Set Secret & Wait for Opponent'}
+                  </button>
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setMultiplayerPhase('setup')
+                      setMultiplayerOpponent(null)
+                      setMultiplayerSecret(Array(SLOT_COUNT).fill(null as unknown as Color))
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        <div className="shared-palette">
+          {PALETTE.map((c) => (
+            <button
+              key={c}
+              className={`color ${c}`}
+              onClick={() => {
+                if (selectedMultiplayerSecretSlot !== null) {
+                  const newSecret = [...multiplayerSecret]
+                  newSecret[selectedMultiplayerSecretSlot] = c
+                  setMultiplayerSecret(newSecret)
+                  setSelectedMultiplayerSecretSlot(selectedMultiplayerSecretSlot < SLOT_COUNT - 1 ? selectedMultiplayerSecretSlot + 1 : null)
+                }
+              }}
+              draggable
+              onDragStart={(e) => handleDragStart(e, c)}
+              title={`Pick ${c}`}
+            />
+          ))}
+        </div>
       </>
     )
   }

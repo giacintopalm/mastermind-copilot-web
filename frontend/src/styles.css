@@ -1252,6 +1252,39 @@ section{
   font-style: italic;
 }
 
+/* Waiting screen */
+.waiting-screen {
+  background: white;
+  border-radius: var(--radius);
+  padding: 40px;
+  max-width: 500px;
+  margin: 0 auto;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.waiting-screen h2 {
+  color: var(--text);
+  margin: 0 0 16px 0;
+}
+
+.waiting-screen p {
+  color: var(--text);
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+
+.loading-spinner {
+  font-size: 48px;
+  margin: 24px 0;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Invitation buttons */
 .invite-btn,
 .cancel-invite-btn {
