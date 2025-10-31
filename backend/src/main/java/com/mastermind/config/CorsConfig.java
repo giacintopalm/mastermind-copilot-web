@@ -37,7 +37,7 @@ public class CorsConfig implements WebMvcConfigurer {
         List<String> methodsList = Arrays.asList(allowedMethods.split(","));
         
         registry.addMapping("/**")
-                .allowedOriginPatterns(originsList.toArray(new String[0]))
+                .allowedOrigins(originsList.toArray(new String[0]))
                 .allowedMethods(methodsList.toArray(new String[0]))
                 .allowedHeaders(allowedHeaders)
                 .allowCredentials(allowCredentials)
@@ -51,7 +51,7 @@ public class CorsConfig implements WebMvcConfigurer {
         List<String> originsList = Arrays.asList(allowedOrigins.split(","));
         List<String> methodsList = Arrays.asList(allowedMethods.split(","));
         
-        configuration.setAllowedOriginPatterns(originsList);
+        configuration.setAllowedOrigins(originsList);
         configuration.setAllowedMethods(methodsList);
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(allowCredentials);
