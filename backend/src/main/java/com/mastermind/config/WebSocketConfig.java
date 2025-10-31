@@ -22,7 +22,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Register the WebSocket endpoint that clients will connect to
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(
+                    "http://localhost:3000",
+                    "http://localhost:3001", 
+                    "http://localhost:5173",
+                    "https://nice-sand-04c84f41e.1.azurestaticapps.net",
+                    "https://mmgame.hyacinthwings.co.uk"
+                )
                 .withSockJS();
     }
 }
