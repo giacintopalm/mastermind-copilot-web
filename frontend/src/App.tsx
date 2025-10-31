@@ -213,6 +213,48 @@ export default function App() {
     }
   }, [multiplayerSession])
 
+  // Poll for match status when waiting for opponent's secret
+  useEffect(() => {
+    if (multiplayerPhase !== 'waiting' || !multiplayerSession || !multiplayerOpponent) {
+      return
+    }
+
+    const checkMatchStatus = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/multiplayer/game/status?nickname=${multiplayerSession.nickname}`
+        )
+        
+        if (response.ok) {
+          const matchData = await response.json()
+          console.log('Match status:', matchData)
+          
+          if (matchData.player1Ready && matchData.player2Ready) {
+            // Both players ready! Start the game
+            const isPlayer1 = matchData.player1Nickname === multiplayerSession.nickname
+            const myGameId = isPlayer1 ? matchData.player1GameId : matchData.player2GameId
+            const opponentGameId = isPlayer1 ? matchData.player2GameId : matchData.player1GameId
+            
+            setMyGameId(myGameId)
+            setOpponentGameId(opponentGameId)
+            setMultiplayerPhase('playing')
+            
+            // Load both game states
+            loadMultiplayerGameStates(myGameId, opponentGameId)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check match status:', err)
+      }
+    }
+
+    // Check immediately and then poll every 2 seconds
+    checkMatchStatus()
+    const interval = setInterval(checkMatchStatus, 2000)
+    
+    return () => clearInterval(interval)
+  }, [multiplayerPhase, multiplayerSession, multiplayerOpponent])
+
   // Poll opponent's game state during multiplayer game
   useEffect(() => {
     if (multiplayerPhase !== 'playing' || !opponentGameId) {
@@ -1179,11 +1221,13 @@ export default function App() {
 
   // Load both game states for multiplayer
   const loadMultiplayerGameStates = async (myGameId: string, opponentGameId: string) => {
+    console.log('Loading game states:', { myGameId, opponentGameId })
     try {
       const [myGame, opponentGame] = await Promise.all([
         gameApi.getGame(myGameId),
         gameApi.getGame(opponentGameId)
       ])
+      console.log('Loaded game states:', { myGame, opponentGame })
       setMyGameState(myGame)
       setOpponentGameState(opponentGame)
     } catch (err) {
@@ -1319,10 +1363,22 @@ export default function App() {
   }
 
   function renderMultiplayerGame() {
-    if (!multiplayerSession || !multiplayerOpponent || !myGameState || !opponentGameState) {
+    if (!multiplayerSession || !multiplayerOpponent) {
       return (
         <div className="multiplayer-container">
           <p>Loading game...</p>
+        </div>
+      )
+    }
+
+    if (!myGameState || !opponentGameState) {
+      return (
+        <div className="multiplayer-container">
+          <div className="waiting-screen">
+            <h2>Starting Game...</h2>
+            <p>Loading game boards...</p>
+            <div className="loading-spinner">⏳</div>
+          </div>
         </div>
       )
     }
