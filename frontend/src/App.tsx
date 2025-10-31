@@ -1001,8 +1001,8 @@ export default function App() {
       )
     }
 
-    // Show multiplayer game
-    if (multiplayerOpponent && multiplayerPhase === 'playing') {
+    // Show multiplayer game (playing or finished)
+    if (multiplayerOpponent && (multiplayerPhase === 'playing' || multiplayerPhase === 'finished')) {
       return renderMultiplayerGame()
     }
 
