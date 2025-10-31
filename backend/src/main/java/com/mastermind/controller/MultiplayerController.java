@@ -79,6 +79,10 @@ public class MultiplayerController {
      */
     @GetMapping("/players")
     public ResponseEntity<PlayerListResponse> getPlayers(@RequestParam(required = false) String exclude) {
+        // Update activity for the requesting player
+        if (exclude != null) {
+            playerSessionService.updatePlayerActivity(exclude);
+        }
         PlayerListResponse response = playerSessionService.getPlayerList(exclude);
         return ResponseEntity.ok(response);
     }
@@ -116,6 +120,9 @@ public class MultiplayerController {
     public ResponseEntity<?> sendInvitation(@RequestParam String fromNickname,
                                             @Valid @RequestBody InvitationRequest request) {
         try {
+            // Update sender's activity
+            playerSessionService.updatePlayerActivityByNickname(fromNickname);
+            
             Invitation invitation = invitationService.createInvitation(fromNickname, request.getToNickname());
             
             InvitationResponse response = new InvitationResponse(
@@ -250,11 +257,25 @@ public class MultiplayerController {
             if (match.areBothPlayersReady()) {
                 response.setMessage("Both players ready! Game starting...");
                 
+                // Mark both players as IN_GAME
+                playerSessionService.updatePlayerActivityByNickname(match.getPlayer1Nickname());
+                playerSessionService.getSessionByNickname(match.getPlayer1Nickname())
+                        .ifPresent(s -> playerSessionService.updatePlayerStatus(s.getSessionId(), PlayerSession.PlayerStatus.IN_GAME));
+                
+                playerSessionService.updatePlayerActivityByNickname(match.getPlayer2Nickname());
+                playerSessionService.getSessionByNickname(match.getPlayer2Nickname())
+                        .ifPresent(s -> playerSessionService.updatePlayerStatus(s.getSessionId(), PlayerSession.PlayerStatus.IN_GAME));
+                
+                // Broadcast updated player list (showing players as busy)
+                broadcastPlayerList();
+                
                 // Notify both players via WebSocket
                 messagingTemplate.convertAndSend("/topic/game/" + match.getPlayer1Nickname(), response);
                 messagingTemplate.convertAndSend("/topic/game/" + match.getPlayer2Nickname(), response);
             } else {
                 response.setMessage("Waiting for opponent to set their secret...");
+                // Update activity for the player who just set their secret
+                playerSessionService.updatePlayerActivityByNickname(nickname);
             }
 
             return ResponseEntity.ok(response);
@@ -286,8 +307,23 @@ public class MultiplayerController {
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new ErrorResponse("NOT_FOUND", e.getMessage()));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse("GAME_ERROR", e.getMessage()));
         }
+    }
+
+    /**
+     * Mark player as available (returned to lobby)
+     */
+    @PostMapping("/player/available")
+    public ResponseEntity<Void> markPlayerAvailable(@RequestParam String nickname) {
+        playerSessionService.updatePlayerActivityByNickname(nickname);
+        playerSessionService.getSessionByNickname(nickname)
+                .ifPresent(s -> playerSessionService.updatePlayerStatus(s.getSessionId(), PlayerSession.PlayerStatus.AVAILABLE));
+        
+        // Broadcast updated player list
+        broadcastPlayerList();
+        
+        return ResponseEntity.ok().build();
     }
 }

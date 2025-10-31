@@ -106,4 +106,58 @@ public class PlayerSessionService {
     public int getActivePlayerCount() {
         return activeSessions.size();
     }
+
+    /**
+     * Update player's last activity timestamp
+     */
+    public void updatePlayerActivity(String sessionId) {
+        PlayerSession session = activeSessions.get(sessionId);
+        if (session != null) {
+            session.updateActivity();
+        }
+    }
+
+    /**
+     * Update player's last activity by nickname
+     */
+    public void updatePlayerActivityByNickname(String nickname) {
+        String sessionId = nicknameToSessionId.get(nickname.toLowerCase());
+        if (sessionId != null) {
+            updatePlayerActivity(sessionId);
+        }
+    }
+
+    /**
+     * Remove inactive players (no activity for more than 10 minutes)
+     */
+    public int removeInactivePlayers() {
+        java.time.LocalDateTime cutoffTime = java.time.LocalDateTime.now().minusMinutes(10);
+        List<String> toRemove = new ArrayList<>();
+
+        for (Map.Entry<String, PlayerSession> entry : activeSessions.entrySet()) {
+            PlayerSession session = entry.getValue();
+            // Only remove AVAILABLE players who are inactive (not in game)
+            if (session.getStatus() == PlayerSession.PlayerStatus.AVAILABLE &&
+                session.getLastActivity().isBefore(cutoffTime)) {
+                toRemove.add(entry.getKey());
+            }
+        }
+
+        for (String sessionId : toRemove) {
+            logout(sessionId);
+        }
+
+        return toRemove.size();
+    }
+
+    /**
+     * Get a player session by nickname
+     */
+    public Optional<PlayerSession> getSessionByNickname(String nickname) {
+        String sessionId = nicknameToSessionId.get(nickname.toLowerCase());
+        if (sessionId != null) {
+            return Optional.ofNullable(activeSessions.get(sessionId));
+        }
+        return Optional.empty();
+    }
 }

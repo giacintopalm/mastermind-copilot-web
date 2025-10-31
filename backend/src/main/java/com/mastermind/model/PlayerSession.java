@@ -6,6 +6,7 @@ public class PlayerSession {
     private String sessionId;
     private String nickname;
     private LocalDateTime connectedAt;
+    private LocalDateTime lastActivity;
     private PlayerStatus status;
 
     public PlayerSession() {
@@ -15,6 +16,7 @@ public class PlayerSession {
         this.sessionId = sessionId;
         this.nickname = nickname;
         this.connectedAt = LocalDateTime.now();
+        this.lastActivity = LocalDateTime.now();
         this.status = PlayerStatus.AVAILABLE;
     }
 
@@ -48,6 +50,18 @@ public class PlayerSession {
 
     public void setStatus(PlayerStatus status) {
         this.status = status;
+    }
+
+    public LocalDateTime getLastActivity() {
+        return lastActivity;
+    }
+
+    public void setLastActivity(LocalDateTime lastActivity) {
+        this.lastActivity = lastActivity;
+    }
+
+    public void updateActivity() {
+        this.lastActivity = LocalDateTime.now();
     }
 
     public enum PlayerStatus {

@@ -150,6 +150,7 @@ export interface MultiplayerSession {
 }
 
 export interface PlayerInfo {
+  sessionId: string
   nickname: string
   status: string
 }

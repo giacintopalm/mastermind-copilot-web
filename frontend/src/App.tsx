@@ -1511,7 +1511,19 @@ export default function App() {
             {!myWin && !opponentWin && <p>🤝 It\'s a draw - neither player won!</p>}
             <button 
               className="primary"
-              onClick={() => {
+              onClick={async () => {
+                // Mark player as available on the backend
+                if (multiplayerSession) {
+                  try {
+                    await fetch(
+                      `${API_BASE_URL}/multiplayer/player/available?nickname=${multiplayerSession.nickname}`,
+                      { method: 'POST' }
+                    )
+                  } catch (err) {
+                    console.error('Failed to mark player as available:', err)
+                  }
+                }
+                
                 setMultiplayerPhase('setup')
                 setMultiplayerOpponent(null)
                 setMyGameId(null)
