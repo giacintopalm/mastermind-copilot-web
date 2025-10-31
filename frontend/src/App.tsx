@@ -152,7 +152,7 @@ export default function App() {
     
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/multiplayer/players?exclude=${multiplayerSession.sessionId}`
+        `${API_BASE_URL}/multiplayer/players?exclude=${multiplayerSession.sessionId}`
       )
       const data = await response.json()
       setActivePlayers(data.players || [])
@@ -616,7 +616,7 @@ export default function App() {
         setLoading(true)
         setError(null)
         
-        const response = await fetch(`${API_BASE_URL}/api/multiplayer/login`, {
+        const response = await fetch(`${API_BASE_URL}/multiplayer/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ nickname })
@@ -641,10 +641,9 @@ export default function App() {
       if (!multiplayerSession) return
       
       try {
-        await fetch(`${API_BASE_URL}/api/multiplayer/logout`, {
+        await fetch(`${API_BASE_URL}/multiplayer/logout?sessionId=${multiplayerSession.sessionId}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: multiplayerSession.sessionId })
+          headers: { 'Content-Type': 'application/json' }
         })
       } catch (err) {
         console.error('Failed to logout:', err)
