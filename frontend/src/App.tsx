@@ -45,6 +45,10 @@ export default function App() {
   const [multiplayerSecret, setMultiplayerSecret] = useState<Color[]>(Array(SLOT_COUNT).fill(null as unknown as Color))
   const [selectedMultiplayerSecretSlot, setSelectedMultiplayerSecretSlot] = useState<number | null>(0)
   const [multiplayerPhase, setMultiplayerPhase] = useState<'setup' | 'waiting' | 'playing' | 'finished'>('setup')
+  const [myGameId, setMyGameId] = useState<string | null>(null)
+  const [opponentGameId, setOpponentGameId] = useState<string | null>(null)
+  const [myGameState, setMyGameState] = useState<GameState | null>(null)
+  const [opponentGameState, setOpponentGameState] = useState<GameState | null>(null)
   
   // Common state
   const [loading, setLoading] = useState(false)
@@ -171,9 +175,16 @@ export default function App() {
             
             if (gameData.player1Ready && gameData.player2Ready) {
               // Both players ready! Start the game
-              alert(`Game starting with ${gameData.player1Nickname === multiplayerSession.nickname ? gameData.player2Nickname : gameData.player1Nickname}!`)
+              const isPlayer1 = gameData.player1Nickname === multiplayerSession.nickname
+              const myGameId = isPlayer1 ? gameData.player1GameId : gameData.player2GameId
+              const opponentGameId = isPlayer1 ? gameData.player2GameId : gameData.player1GameId
+              
+              setMyGameId(myGameId)
+              setOpponentGameId(opponentGameId)
               setMultiplayerPhase('playing')
-              // TODO: Load the game state and start playing
+              
+              // Load both game states
+              loadMultiplayerGameStates(myGameId, opponentGameId)
             }
           } catch (err) {
             console.error('Failed to parse game notification:', err)
@@ -201,6 +212,33 @@ export default function App() {
       }
     }
   }, [multiplayerSession])
+
+  // Poll opponent's game state during multiplayer game
+  useEffect(() => {
+    if (multiplayerPhase !== 'playing' || !opponentGameId) {
+      return
+    }
+
+    const pollOpponentGame = async () => {
+      try {
+        const opponentGame = await gameApi.getGame(opponentGameId)
+        setOpponentGameState(opponentGame)
+        
+        // Check if opponent won
+        if (opponentGame.gameOver || (opponentGame.history?.length && 
+            opponentGame.history[opponentGame.history.length - 1].feedback.exact === SLOT_COUNT)) {
+          setMultiplayerPhase('finished')
+        }
+      } catch (err) {
+        console.error('Failed to poll opponent game:', err)
+      }
+    }
+
+    // Poll every 2 seconds
+    const interval = setInterval(pollOpponentGame, 2000)
+    
+    return () => clearInterval(interval)
+  }, [multiplayerPhase, opponentGameId])
 
   async function fetchPlayerList() {
     if (!multiplayerSession) return
@@ -478,6 +516,32 @@ export default function App() {
       const message = err instanceof ApiError ? err.message : 'Failed to submit guess'
       setError(message)
       console.error('Error submitting guess:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function submitMultiplayerGuess() {
+    if (loading || !myGameState || !myGameId) return
+    if (current.some((c: Color | null) => c == null)) return
+    
+    try {
+      setLoading(true)
+      setError(null)
+      const updatedGame = await gameApi.submitGuess(myGameId, current)
+      setMyGameState(updatedGame)
+      setCurrent(Array(SLOT_COUNT).fill(null as unknown as Color))
+      setSelectedSlot(0)
+      
+      // Check if game is over
+      if (updatedGame.gameOver || (updatedGame.history.length > 0 && 
+          updatedGame.history[updatedGame.history.length - 1].feedback.exact === SLOT_COUNT)) {
+        setMultiplayerPhase('finished')
+      }
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to submit guess'
+      setError(message)
+      console.error('Error submitting multiplayer guess:', err)
     } finally {
       setLoading(false)
     }
@@ -833,6 +897,11 @@ export default function App() {
       )
     }
 
+    // Show multiplayer game
+    if (multiplayerOpponent && multiplayerPhase === 'playing') {
+      return renderMultiplayerGame()
+    }
+
     if (!multiplayerSession) {
       return (
         <div className="multiplayer-container">
@@ -1108,6 +1177,21 @@ export default function App() {
     )
   }
 
+  // Load both game states for multiplayer
+  const loadMultiplayerGameStates = async (myGameId: string, opponentGameId: string) => {
+    try {
+      const [myGame, opponentGame] = await Promise.all([
+        gameApi.getGame(myGameId),
+        gameApi.getGame(opponentGameId)
+      ])
+      setMyGameState(myGame)
+      setOpponentGameState(opponentGame)
+    } catch (err) {
+      console.error('Failed to load multiplayer game states:', err)
+      setError('Failed to load game states')
+    }
+  }
+
   function renderMultiplayerSecretSetup() {
     const handleSetSecret = async () => {
       if (multiplayerSecret.some((c) => c == null) || !multiplayerSession || !multiplayerOpponent) {
@@ -1231,6 +1315,194 @@ export default function App() {
           ))}
         </div>
       </>
+    )
+  }
+
+  function renderMultiplayerGame() {
+    if (!multiplayerSession || !multiplayerOpponent || !myGameState || !opponentGameState) {
+      return (
+        <div className="multiplayer-container">
+          <p>Loading game...</p>
+        </div>
+      )
+    }
+
+    const myWin = !!(myGameState.history?.length && 
+      myGameState.history[myGameState.history.length - 1]?.feedback?.exact === SLOT_COUNT)
+    const opponentWin = !!(opponentGameState.history?.length && 
+      opponentGameState.history[opponentGameState.history.length - 1]?.feedback?.exact === SLOT_COUNT)
+    const myGameOver = myGameState.gameOver
+    const opponentGameOver = opponentGameState.gameOver
+
+    return (
+      <div className="computer-game">
+        <div className="turn-indicator">
+          <h2>Playing against {multiplayerOpponent}</h2>
+        </div>
+        
+        <div className="dual-board">
+          {renderMultiplayerPlayerBoard(
+            `${multiplayerSession.nickname}'s Game`,
+            myGameState,
+            current,
+            selectedSlot,
+            submitMultiplayerGuess,
+            true,
+            myWin,
+            myGameOver
+          )}
+          {renderMultiplayerPlayerBoard(
+            `${multiplayerOpponent}'s Game`,
+            opponentGameState,
+            [],
+            null,
+            () => {},
+            false,
+            opponentWin,
+            opponentGameOver
+          )}
+        </div>
+        
+        <div className="shared-palette">
+          {PALETTE.map((c) => (
+            <button
+              key={c}
+              className={`color ${c}`}
+              onClick={() => chooseColor(c)}
+              draggable
+              onDragStart={(e) => handleDragStart(e, c)}
+              title={`Pick ${c}`}
+            />
+          ))}
+        </div>
+        
+        {(myGameOver || opponentGameOver) && (
+          <div className="game-over-section">
+            <h3>Game Over!</h3>
+            {myWin && !opponentWin && <p>🎉 You won!</p>}
+            {opponentWin && !myWin && <p>😔 {multiplayerOpponent} won!</p>}
+            {myWin && opponentWin && (
+              <p>
+                {myGameState.history.length < opponentGameState.history.length 
+                  ? '🎉 You won with fewer guesses!' 
+                  : opponentGameState.history.length < myGameState.history.length
+                  ? `😔 ${multiplayerOpponent} won with fewer guesses!`
+                  : '🤝 It\'s a draw!'}
+              </p>
+            )}
+            {!myWin && !opponentWin && <p>🤝 It\'s a draw - neither player won!</p>}
+            <button 
+              className="primary"
+              onClick={() => {
+                setMultiplayerPhase('setup')
+                setMultiplayerOpponent(null)
+                setMyGameId(null)
+                setOpponentGameId(null)
+                setMyGameState(null)
+                setOpponentGameState(null)
+                setCurrent(Array(SLOT_COUNT).fill(null as unknown as Color))
+                setSelectedSlot(0)
+              }}
+            >
+              Return to Lobby
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function renderMultiplayerPlayerBoard(
+    title: string,
+    gameState: GameState,
+    currentGuess: Color[],
+    selectedSlot: number | null,
+    onSubmit: () => void,
+    isMyBoard: boolean,
+    playerWin: boolean,
+    playerGameOver: boolean
+  ) {
+    return (
+      <section className={`player-board ${isMyBoard ? 'user' : 'opponent'}-board ${isMyBoard ? 'active' : ''}`}>
+        <div className="section-header">
+          <h2>{title}</h2>
+          {playerWin && <span className="board-status win">✓ Won!</span>}
+          {playerGameOver && !playerWin && <span className="board-status lose">✗ Failed</span>}
+        </div>
+        <div className="section-content">
+          {/* Current guess row for my board */}
+          {isMyBoard && !playerGameOver && (
+            <div className="guess-container">
+              <div className="attempt-number current">?</div>
+              <div className="slots">
+                {Array.from({ length: SLOT_COUNT }).map((_, i) => {
+                  const c = currentGuess[i]
+                  return (
+                    <button
+                      key={i}
+                      className={`slot ${c ?? ''} ${selectedSlot === i ? 'selected' : ''}`}
+                      onClick={() => setSelectedSlot(i)}
+                      draggable={c !== null}
+                      onDragStart={(e) => handleDragStart(e, c, i)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, i)}
+                      onContextMenu={(e: MouseEvent<HTMLButtonElement>) => {
+                        e.preventDefault()
+                        clearSlot(i)
+                      }}
+                      title={c ? `Slot ${i + 1}: ${c}` : `Slot ${i + 1}: empty`}
+                    />
+                  )
+                })}
+              </div>
+              
+              <div className="actions">
+                <button
+                  className="primary"
+                  onClick={onSubmit}
+                  disabled={loading || currentGuess.some((c) => c == null)}
+                >
+                  {loading ? 'Submitting...' : 'Submit Guess'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Spacer for opponent board */}
+          {!isMyBoard && !playerGameOver && (
+            <div className="guess-container-spacer" style={{
+              minHeight: 'clamp(48px, 15vw, 64px)', 
+              marginBottom: '0'
+            }}></div>
+          )}
+
+          {/* History */}
+          {gameState.history?.length ? (
+            <div className="history">
+              {gameState.history.map((h, idx) => (
+                <div key={idx} className="history-item">
+                  <div className="attempt-number">{idx + 1}</div>
+                  <div className="slots small">
+                    {h.guess.map((c: Color, i: number) => (
+                      <span key={i} className={`slot ${c.toLowerCase()}`} />
+                    ))}
+                  </div>
+                  <div className="feedback">
+                    {Array.from({ length: h.feedback.exact }).map((_, i) => (
+                      <span key={"e"+i} className="peg exact" title="Exact match (black)" />
+                    ))}
+                    {Array.from({ length: h.feedback.partial }).map((_, i) => (
+                      <span key={"p"+i} className="peg partial" title="Color-only match (white)" />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">No attempts yet.</p>
+          )}
+        </div>
+      </section>
     )
   }
 
