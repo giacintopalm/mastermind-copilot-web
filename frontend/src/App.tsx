@@ -281,32 +281,68 @@ export default function App() {
     }
   }, [multiplayerPhase, myGameId, opponentGameId, myGameState, opponentGameState])
 
-  // Poll opponent's game state during multiplayer game
+  // Poll both game states during multiplayer game
   useEffect(() => {
-    if (multiplayerPhase !== 'playing' || !opponentGameId) {
+    if (multiplayerPhase !== 'playing' || !myGameId || !opponentGameId) {
       return
     }
 
-    const pollOpponentGame = async () => {
+    const pollGameStates = async () => {
       try {
-        const opponentGame = await gameApi.getGame(opponentGameId)
+        const [myGame, opponentGame] = await Promise.all([
+          gameApi.getGame(myGameId),
+          gameApi.getGame(opponentGameId)
+        ])
+        
+        setMyGameState(myGame)
         setOpponentGameState(opponentGame)
         
-        // Check if opponent won
-        if (opponentGame.gameOver || (opponentGame.history?.length && 
-            opponentGame.history[opponentGame.history.length - 1].feedback.exact === SLOT_COUNT)) {
+        // Check if either player won or game is over
+        const myWon = myGame.history?.length && 
+          myGame.history[myGame.history.length - 1].feedback.exact === SLOT_COUNT
+        const opponentWon = opponentGame.history?.length && 
+          opponentGame.history[opponentGame.history.length - 1].feedback.exact === SLOT_COUNT
+        
+        if (myGame.gameOver || opponentGame.gameOver || myWon || opponentWon) {
           setMultiplayerPhase('finished')
         }
       } catch (err) {
-        console.error('Failed to poll opponent game:', err)
+        console.error('Failed to poll game states:', err)
       }
     }
 
     // Poll every 2 seconds
-    const interval = setInterval(pollOpponentGame, 2000)
+    const interval = setInterval(pollGameStates, 2000)
     
     return () => clearInterval(interval)
-  }, [multiplayerPhase, opponentGameId])
+  }, [multiplayerPhase, myGameId, opponentGameId])
+
+  // Detect when multiplayer game ends and determine winner
+  useEffect(() => {
+    if (multiplayerPhase === 'finished' && myGameState && opponentGameState && multiplayerOpponent) {
+      const myWon = myGameState.history?.length && 
+        myGameState.history[myGameState.history.length - 1].feedback.exact === SLOT_COUNT
+      const opponentWon = opponentGameState.history?.length && 
+        opponentGameState.history[opponentGameState.history.length - 1].feedback.exact === SLOT_COUNT
+      
+      // Show notification based on outcome
+      if (myWon && !opponentWon) {
+        console.log(`🎉 Victory! You cracked ${multiplayerOpponent}'s code!`)
+      } else if (opponentWon && !myWon) {
+        console.log(`😔 ${multiplayerOpponent} won! They cracked your code!`)
+      } else if (myWon && opponentWon) {
+        if (myGameState.history.length < opponentGameState.history.length) {
+          console.log('🎉 Victory! You won with fewer guesses!')
+        } else if (opponentGameState.history.length < myGameState.history.length) {
+          console.log(`😔 ${multiplayerOpponent} won with fewer guesses!`)
+        } else {
+          console.log('🤝 Draw! You both guessed correctly in the same number of attempts!')
+        }
+      } else {
+        console.log('🤝 Draw! Neither player won!')
+      }
+    }
+  }, [multiplayerPhase, myGameState, opponentGameState, multiplayerOpponent])
 
   async function fetchPlayerList() {
     if (!multiplayerSession) return
@@ -1458,18 +1494,18 @@ export default function App() {
           ))}
         </div>
         
-        {(myGameOver || opponentGameOver) && (
+        {(multiplayerPhase === 'finished' || myGameOver || opponentGameOver) && (
           <div className="game-over-section">
             <h3>Game Over!</h3>
-            {myWin && !opponentWin && <p>🎉 You won!</p>}
-            {opponentWin && !myWin && <p>😔 {multiplayerOpponent} won!</p>}
+            {myWin && !opponentWin && <p>🎉 You won! You cracked {multiplayerOpponent}'s code!</p>}
+            {opponentWin && !myWin && <p>😔 {multiplayerOpponent} won! They cracked your code!</p>}
             {myWin && opponentWin && (
               <p>
                 {myGameState.history.length < opponentGameState.history.length 
                   ? '🎉 You won with fewer guesses!' 
                   : opponentGameState.history.length < myGameState.history.length
                   ? `😔 ${multiplayerOpponent} won with fewer guesses!`
-                  : '🤝 It\'s a draw!'}
+                  : '🤝 It\'s a draw! You both guessed correctly in the same number of attempts!'}
               </p>
             )}
             {!myWin && !opponentWin && <p>🤝 It\'s a draw - neither player won!</p>}
