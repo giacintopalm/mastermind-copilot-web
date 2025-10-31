@@ -11,6 +11,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * CORS configuration for allowing requests from the React frontend.
@@ -33,8 +34,12 @@ public class CorsConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        List<String> originsList = Arrays.asList(allowedOrigins.split(","));
-        List<String> methodsList = Arrays.asList(allowedMethods.split(","));
+        List<String> originsList = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
+        List<String> methodsList = Arrays.stream(allowedMethods.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
         
         registry.addMapping("/**")
                 .allowedOrigins(originsList.toArray(new String[0]))
@@ -48,8 +53,12 @@ public class CorsConfig implements WebMvcConfigurer {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         
-        List<String> originsList = Arrays.asList(allowedOrigins.split(","));
-        List<String> methodsList = Arrays.asList(allowedMethods.split(","));
+        List<String> originsList = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
+        List<String> methodsList = Arrays.stream(allowedMethods.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
         
         configuration.setAllowedOrigins(originsList);
         configuration.setAllowedMethods(methodsList);
