@@ -142,3 +142,99 @@ class GameApiService {
 
 export const gameApi = new GameApiService()
 export { ApiError }
+
+// Multiplayer types
+export interface MultiplayerSession {
+  sessionId: string
+  nickname: string
+}
+
+export interface PlayerInfo {
+  nickname: string
+  status: string
+}
+
+export interface InvitationResponse {
+  invitationId: string
+  fromNickname: string
+  toNickname: string
+  status: string
+  message?: string
+}
+
+class MultiplayerApiService {
+  
+  private async handleResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const message = errorData.message || `HTTP ${response.status}: ${response.statusText}`
+      throw new ApiError(message, response.status)
+    }
+    return response.json()
+  }
+
+  /**
+   * Login to multiplayer lobby
+   */
+  async login(nickname: string): Promise<{ success: boolean; sessionId?: string; message?: string }> {
+    const response = await fetch(`${API_BASE_URL}/multiplayer/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname })
+    })
+    return this.handleResponse(response)
+  }
+
+  /**
+   * Logout from multiplayer lobby
+   */
+  async logout(sessionId: string): Promise<void> {
+    await fetch(`${API_BASE_URL}/multiplayer/logout?sessionId=${sessionId}`, {
+      method: 'POST'
+    })
+  }
+
+  /**
+   * Get list of active players
+   */
+  async getPlayers(): Promise<{ players: PlayerInfo[] }> {
+    const response = await fetch(`${API_BASE_URL}/multiplayer/players`)
+    return this.handleResponse(response)
+  }
+
+  /**
+   * Send invitation to another player
+   */
+  async sendInvitation(fromNickname: string, toNickname: string): Promise<InvitationResponse> {
+    const response = await fetch(`${API_BASE_URL}/multiplayer/invite?fromNickname=${fromNickname}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toNickname })
+    })
+    return this.handleResponse(response)
+  }
+
+  /**
+   * Respond to an invitation (accept or decline)
+   */
+  async respondToInvitation(nickname: string, invitationId: string, accept: boolean): Promise<InvitationResponse> {
+    const response = await fetch(`${API_BASE_URL}/multiplayer/invitation/respond?nickname=${nickname}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invitationId, accept })
+    })
+    return this.handleResponse(response)
+  }
+
+  /**
+   * Cancel an invitation
+   */
+  async cancelInvitation(invitationId: string): Promise<InvitationResponse> {
+    const response = await fetch(`${API_BASE_URL}/multiplayer/invitation/cancel?invitationId=${invitationId}`, {
+      method: 'POST'
+    })
+    return this.handleResponse(response)
+  }
+}
+
+export const multiplayerApi = new MultiplayerApiService()

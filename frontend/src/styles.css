@@ -1252,6 +1252,115 @@ section{
   font-style: italic;
 }
 
+/* Invitation buttons */
+.invite-btn,
+.cancel-invite-btn {
+  padding: 6px 12px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.invite-btn {
+  background: var(--text);
+  color: white;
+}
+
+.invite-btn:hover:not(:disabled) {
+  background: #2b2b2b;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.invite-btn:disabled {
+  background: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.cancel-invite-btn {
+  background: #f44336;
+  color: white;
+}
+
+.cancel-invite-btn:hover {
+  background: #d32f2f;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  animation: slideUp 0.3s;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-content h3 {
+  margin: 0 0 16px 0;
+  color: var(--text);
+  font-size: 24px;
+}
+
+.modal-content p {
+  margin: 0 0 20px 0;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modal-actions button {
+  padding: 10px 20px;
+  font-size: 16px;
+}
+
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
   .nickname-prompt,
@@ -1261,14 +1370,44 @@ section{
   
   .player-item {
     padding: 10px 12px;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   
   .player-nickname {
     font-size: 14px;
+    flex: 1;
   }
   
   .player-status {
     font-size: 10px;
     padding: 3px 6px;
+  }
+  
+  .invite-btn,
+  .cancel-invite-btn {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+  
+  .modal-content {
+    padding: 20px;
+    width: 85%;
+  }
+  
+  .modal-content h3 {
+    font-size: 20px;
+  }
+  
+  .modal-content p {
+    font-size: 14px;
+  }
+  
+  .modal-actions {
+    flex-direction: column;
+  }
+  
+  .modal-actions button {
+    width: 100%;
   }
 }

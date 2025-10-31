@@ -36,6 +36,10 @@ export default function App() {
   const [showNicknamePrompt, setShowNicknamePrompt] = useState(false)
   const stompClientRef = useRef<Client | null>(null)
   
+  // Invitation state
+  const [incomingInvitation, setIncomingInvitation] = useState<{invitationId: string, fromNickname: string} | null>(null)
+  const [sentInvitation, setSentInvitation] = useState<{invitationId: string, toNickname: string} | null>(null)
+  
   // Common state
   const [loading, setLoading] = useState(false)
   const [suggestLoading, setSuggestLoading] = useState(false)
@@ -121,6 +125,35 @@ export default function App() {
           }
         })
 
+        // Subscribe to invitations for this player
+        client.subscribe(`/topic/invitations/${multiplayerSession.nickname}`, (message: IMessage) => {
+          try {
+            const invitation = JSON.parse(message.body)
+            console.log('Received invitation:', invitation)
+            
+            if (invitation.status === 'PENDING' && invitation.toNickname === multiplayerSession.nickname) {
+              // Incoming invitation
+              setIncomingInvitation({
+                invitationId: invitation.invitationId,
+                fromNickname: invitation.fromNickname
+              })
+            } else if (invitation.status === 'ACCEPTED' && invitation.fromNickname === multiplayerSession.nickname) {
+              // Your invitation was accepted
+              alert(`${invitation.toNickname} accepted your invitation! Game starting soon...`)
+              setSentInvitation(null)
+            } else if (invitation.status === 'DECLINED' && invitation.fromNickname === multiplayerSession.nickname) {
+              // Your invitation was declined
+              alert(`${invitation.toNickname} declined your invitation.`)
+              setSentInvitation(null)
+            } else if (invitation.status === 'CANCELLED') {
+              // Invitation was cancelled
+              setIncomingInvitation(null)
+            }
+          } catch (err) {
+            console.error('Failed to parse invitation:', err)
+          }
+        })
+
         // Request initial player list
         fetchPlayerList()
       },
@@ -154,6 +187,98 @@ export default function App() {
       setActivePlayers(data.players || [])
     } catch (err) {
       console.error('Failed to fetch player list:', err)
+    }
+  }
+
+  async function handleSendInvitation(toNickname: string) {
+    if (!multiplayerSession) return
+    
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/multiplayer/invite?fromNickname=${multiplayerSession.nickname}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ toNickname })
+        }
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        setSentInvitation({ invitationId: data.invitationId, toNickname })
+        console.log('Invitation sent:', data)
+      } else {
+        const errorData = await response.json()
+        alert(errorData.message || 'Failed to send invitation')
+      }
+    } catch (err) {
+      console.error('Failed to send invitation:', err)
+      alert('Failed to send invitation')
+    }
+  }
+
+  async function handleAcceptInvitation() {
+    if (!multiplayerSession || !incomingInvitation) return
+    
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/multiplayer/invitation/respond?nickname=${multiplayerSession.nickname}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            invitationId: incomingInvitation.invitationId, 
+            accept: true 
+          })
+        }
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Invitation accepted:', data)
+        setIncomingInvitation(null)
+        alert(`Accepted invitation from ${incomingInvitation.fromNickname}! Game starting soon...`)
+        // TODO: Start multiplayer game
+      }
+    } catch (err) {
+      console.error('Failed to accept invitation:', err)
+    }
+  }
+
+  async function handleDeclineInvitation() {
+    if (!multiplayerSession || !incomingInvitation) return
+    
+    try {
+      await fetch(
+        `${API_BASE_URL}/multiplayer/invitation/respond?nickname=${multiplayerSession.nickname}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            invitationId: incomingInvitation.invitationId, 
+            accept: false 
+          })
+        }
+      )
+      
+      setIncomingInvitation(null)
+    } catch (err) {
+      console.error('Failed to decline invitation:', err)
+    }
+  }
+
+  async function handleCancelInvitation() {
+    if (!sentInvitation) return
+    
+    try {
+      await fetch(
+        `${API_BASE_URL}/multiplayer/invitation/cancel?invitationId=${sentInvitation.invitationId}`,
+        { method: 'POST' }
+      )
+      
+      setSentInvitation(null)
+    } catch (err) {
+      console.error('Failed to cancel invitation:', err)
     }
   }
 
@@ -726,6 +851,24 @@ export default function App() {
                     <span className={`player-status ${player.status.toLowerCase()}`}>
                       {player.status}
                     </span>
+                    {sentInvitation?.toNickname === player.nickname ? (
+                      <button 
+                        className="cancel-invite-btn"
+                        onClick={handleCancelInvitation}
+                        title="Cancel invitation"
+                      >
+                        ❌ Cancel
+                      </button>
+                    ) : (
+                      <button 
+                        className="invite-btn"
+                        onClick={() => handleSendInvitation(player.nickname)}
+                        disabled={player.status !== 'AVAILABLE' || !!sentInvitation}
+                        title={player.status !== 'AVAILABLE' ? 'Player not available' : 'Send invitation'}
+                      >
+                        ⚔️ Invite
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -741,6 +884,32 @@ export default function App() {
             </button>
           </div>
         </div>
+        
+        {/* Incoming Invitation Modal */}
+        {incomingInvitation && (
+          <div className="modal-overlay" onClick={handleDeclineInvitation}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <h3>🎮 Game Invitation</h3>
+              <p>
+                <strong>{incomingInvitation.fromNickname}</strong> wants to play Mastermind with you!
+              </p>
+              <div className="modal-actions">
+                <button 
+                  className="primary" 
+                  onClick={handleAcceptInvitation}
+                >
+                  ✓ Accept
+                </button>
+                <button 
+                  className="secondary" 
+                  onClick={handleDeclineInvitation}
+                >
+                  ✗ Decline
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

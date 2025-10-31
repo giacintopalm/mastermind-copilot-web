@@ -23,6 +23,13 @@ public class PlayerSessionService {
     }
 
     /**
+     * Check if a nickname is connected (logged in)
+     */
+    public boolean isNicknameConnected(String nickname) {
+        return nicknameToSessionId.containsKey(nickname.toLowerCase());
+    }
+
+    /**
      * Login a player with a unique nickname
      */
     public PlayerSession login(String nickname) {
