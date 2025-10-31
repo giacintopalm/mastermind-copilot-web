@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import type { MouseEvent, DragEvent } from 'react'
 import { gameApi, Color, GameState, GuessAttempt, ApiError, API_BASE_URL } from './api'
-// import SockJS from 'sockjs-client'
-// import { Client, Message } from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
+import { Client, IMessage } from '@stomp/stompjs'
 
 const PALETTE: Color[] = ['red', 'blue', 'green', 'yellow', 'purple', 'cyan']
 const SLOT_COUNT = 4
@@ -34,7 +34,7 @@ export default function App() {
   const [multiplayerSession, setMultiplayerSession] = useState<{sessionId: string, nickname: string} | null>(null)
   const [activePlayers, setActivePlayers] = useState<Array<{sessionId: string, nickname: string, status: string}>>([])
   const [showNicknamePrompt, setShowNicknamePrompt] = useState(false)
-  // const stompClientRef = useRef<Client | null>(null)
+  const stompClientRef = useRef<Client | null>(null)
   
   // Common state
   const [loading, setLoading] = useState(false)
@@ -104,47 +104,43 @@ export default function App() {
       return
     }
 
-    // TODO: Reconnect WebSocket when imports are fixed
     // Create WebSocket connection
-    // const socket = new SockJS(`${API_BASE_URL}/ws`)
-    // const client = new Client({
-    //   webSocketFactory: () => socket as any,
-    //   onConnect: () => {
-    //     console.log('WebSocket connected')
-    //     
-    //     // Subscribe to player list updates
-    //     client.subscribe('/topic/players', (message: Message) => {
-    //       try {
-    //         const playerList = JSON.parse(message.body)
-    //         setActivePlayers(playerList.players || [])
-    //       } catch (err) {
-    //         console.error('Failed to parse player list:', err)
-    //       }
-    //     })
+    const socket = new SockJS(`${API_BASE_URL}/ws`)
+    const client = new Client({
+      webSocketFactory: () => socket as any,
+      onConnect: () => {
+        console.log('WebSocket connected')
+        
+        // Subscribe to player list updates
+        client.subscribe('/topic/players', (message: IMessage) => {
+          try {
+            const playerList = JSON.parse(message.body)
+            setActivePlayers(playerList.players || [])
+          } catch (err) {
+            console.error('Failed to parse player list:', err)
+          }
+        })
 
-    //     // Request initial player list
-    //     fetchPlayerList()
-    //   },
-    //   onDisconnect: () => {
-    //     console.log('WebSocket disconnected')
-    //   },
-    //   onStompError: (frame) => {
-    //     console.error('STOMP error:', frame)
-    //   }
-    // })
+        // Request initial player list
+        fetchPlayerList()
+      },
+      onDisconnect: () => {
+        console.log('WebSocket disconnected')
+      },
+      onStompError: (frame) => {
+        console.error('STOMP error:', frame)
+      }
+    })
 
-    // client.activate()
-    // stompClientRef.current = client
+    client.activate()
+    stompClientRef.current = client
 
     // Cleanup on unmount or session change
-    // return () => {
-    //   if (stompClientRef.current) {
-    //     stompClientRef.current.deactivate()
-    //   }
-    // }
-
-    // Fetch initial player list without WebSocket for now
-    fetchPlayerList()
+    return () => {
+      if (stompClientRef.current) {
+        stompClientRef.current.deactivate()
+      }
+    }
   }, [multiplayerSession])
 
   async function fetchPlayerList() {
