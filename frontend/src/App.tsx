@@ -171,7 +171,7 @@ export default function App() {
         client.subscribe(`/topic/game/${multiplayerSession.nickname}`, (message: IMessage) => {
           try {
             const gameData = JSON.parse(message.body)
-            console.log('Game notification:', gameData)
+            console.log('Game notification via WebSocket:', gameData)
             
             if (gameData.player1Ready && gameData.player2Ready) {
               // Both players ready! Start the game
@@ -179,12 +179,12 @@ export default function App() {
               const myGameId = isPlayer1 ? gameData.player1GameId : gameData.player2GameId
               const opponentGameId = isPlayer1 ? gameData.player2GameId : gameData.player1GameId
               
+              console.log('WebSocket: Setting game IDs and transitioning to playing', { myGameId, opponentGameId })
+              
               setMyGameId(myGameId)
               setOpponentGameId(opponentGameId)
               setMultiplayerPhase('playing')
-              
-              // Load both game states
-              loadMultiplayerGameStates(myGameId, opponentGameId)
+              // Game states will be loaded by the useEffect
             }
           } catch (err) {
             console.error('Failed to parse game notification:', err)
@@ -235,12 +235,16 @@ export default function App() {
             const myGameId = isPlayer1 ? matchData.player1GameId : matchData.player2GameId
             const opponentGameId = isPlayer1 ? matchData.player2GameId : matchData.player1GameId
             
+            console.log('Both players ready!', { myGameId, opponentGameId, matchData })
+            
+            if (!myGameId || !opponentGameId) {
+              console.error('Game IDs are missing!', { myGameId, opponentGameId })
+              return
+            }
+            
             setMyGameId(myGameId)
             setOpponentGameId(opponentGameId)
             setMultiplayerPhase('playing')
-            
-            // Load both game states
-            loadMultiplayerGameStates(myGameId, opponentGameId)
           }
         }
       } catch (err) {
@@ -254,6 +258,28 @@ export default function App() {
     
     return () => clearInterval(interval)
   }, [multiplayerPhase, multiplayerSession, multiplayerOpponent])
+
+  // Load game states when transitioning to playing phase with valid game IDs
+  useEffect(() => {
+    if (multiplayerPhase === 'playing' && myGameId && opponentGameId && !myGameState && !opponentGameState) {
+      console.log('Loading game states in useEffect:', { myGameId, opponentGameId })
+      const loadStates = async () => {
+        try {
+          const [myGame, opponentGame] = await Promise.all([
+            gameApi.getGame(myGameId),
+            gameApi.getGame(opponentGameId)
+          ])
+          console.log('Loaded game states:', { myGame, opponentGame })
+          setMyGameState(myGame)
+          setOpponentGameState(opponentGame)
+        } catch (err) {
+          console.error('Failed to load multiplayer game states:', err)
+          setError('Failed to load game states')
+        }
+      }
+      loadStates()
+    }
+  }, [multiplayerPhase, myGameId, opponentGameId, myGameState, opponentGameState])
 
   // Poll opponent's game state during multiplayer game
   useEffect(() => {
