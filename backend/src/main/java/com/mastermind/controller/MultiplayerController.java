@@ -1,8 +1,12 @@
 package com.mastermind.controller;
 
 import com.mastermind.dto.*;
+import com.mastermind.model.Game;
+import com.mastermind.model.GameMatch;
 import com.mastermind.model.Invitation;
 import com.mastermind.model.PlayerSession;
+import com.mastermind.service.GameMatchService;
+import com.mastermind.service.GameService;
 import com.mastermind.service.InvitationService;
 import com.mastermind.service.PlayerSessionService;
 import jakarta.validation.Valid;
@@ -14,6 +18,8 @@ import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/multiplayer")
 public class MultiplayerController {
@@ -21,14 +27,20 @@ public class MultiplayerController {
     private final PlayerSessionService playerSessionService;
     private final InvitationService invitationService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final GameMatchService gameMatchService;
+    private final GameService gameService;
 
     @Autowired
     public MultiplayerController(PlayerSessionService playerSessionService,
                                  InvitationService invitationService,
-                                 SimpMessagingTemplate messagingTemplate) {
+                                 SimpMessagingTemplate messagingTemplate,
+                                 GameMatchService gameMatchService,
+                                 GameService gameService) {
         this.playerSessionService = playerSessionService;
         this.invitationService = invitationService;
         this.messagingTemplate = messagingTemplate;
+        this.gameMatchService = gameMatchService;
+        this.gameService = gameService;
     }
 
     /**
@@ -190,6 +202,92 @@ public class MultiplayerController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse("INVITATION_ERROR", e.getMessage()));
+        }
+    }
+
+    /**
+     * Set player's secret and create game when invitation accepted
+     */
+    @PostMapping("/game/set-secret")
+    public ResponseEntity<?> setSecret(@RequestParam String nickname,
+                                        @RequestParam String opponentNickname,
+                                        @Valid @RequestBody SetSecretRequest request) {
+        try {
+            // Create or get existing match
+            GameMatch match;
+            if (!gameMatchService.isPlayerInMatch(nickname)) {
+                // Create match when first player sets secret
+                match = gameMatchService.createMatch(nickname, opponentNickname);
+            } else {
+                match = gameMatchService.getMatchByPlayer(nickname)
+                        .orElseThrow(() -> new IllegalStateException("Match not found"));
+            }
+
+            // Create a game with the player's secret as the target
+            // Convert string colors to Color enum
+            List<com.mastermind.model.Color> secretColors = request.getSecret().stream()
+                    .map(s -> com.mastermind.model.Color.valueOf(s.toUpperCase()))
+                    .toList();
+            
+            Game game = gameService.createGameWithSecret(4, secretColors);
+            
+            // Set the game ID for this player
+            match = gameMatchService.setPlayerGame(nickname, game.getId());
+
+            // Create response
+            GameMatchResponse response = new GameMatchResponse(
+                    match.getMatchId(),
+                    match.getPlayer1Nickname(),
+                    match.getPlayer2Nickname(),
+                    match.getStatus().toString()
+            );
+            response.setPlayer1GameId(match.getPlayer1GameId());
+            response.setPlayer2GameId(match.getPlayer2GameId());
+            response.setPlayer1Ready(match.isPlayer1Ready());
+            response.setPlayer2Ready(match.isPlayer2Ready());
+
+            // If both players are ready, notify them to start the game
+            if (match.areBothPlayersReady()) {
+                response.setMessage("Both players ready! Game starting...");
+                
+                // Notify both players via WebSocket
+                messagingTemplate.convertAndSend("/topic/game/" + match.getPlayer1Nickname(), response);
+                messagingTemplate.convertAndSend("/topic/game/" + match.getPlayer2Nickname(), response);
+            } else {
+                response.setMessage("Waiting for opponent to set their secret...");
+            }
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse("GAME_ERROR", e.getMessage()));
+        }
+    }
+
+    /**
+     * Get current match status for a player
+     */
+    @GetMapping("/game/status")
+    public ResponseEntity<?> getGameStatus(@RequestParam String nickname) {
+        try {
+            GameMatch match = gameMatchService.getMatchByPlayer(nickname)
+                    .orElseThrow(() -> new IllegalStateException("Player is not in a match"));
+
+            GameMatchResponse response = new GameMatchResponse(
+                    match.getMatchId(),
+                    match.getPlayer1Nickname(),
+                    match.getPlayer2Nickname(),
+                    match.getStatus().toString()
+            );
+            response.setPlayer1GameId(match.getPlayer1GameId());
+            response.setPlayer2GameId(match.getPlayer2GameId());
+            response.setPlayer1Ready(match.isPlayer1Ready());
+            response.setPlayer2Ready(match.isPlayer2Ready());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ErrorResponse("NOT_FOUND", e.getMessage()));
         }
     }
 }

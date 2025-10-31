@@ -163,6 +163,23 @@ export default function App() {
           }
         })
 
+        // Subscribe to game start notifications
+        client.subscribe(`/topic/game/${multiplayerSession.nickname}`, (message: IMessage) => {
+          try {
+            const gameData = JSON.parse(message.body)
+            console.log('Game notification:', gameData)
+            
+            if (gameData.player1Ready && gameData.player2Ready) {
+              // Both players ready! Start the game
+              alert(`Game starting with ${gameData.player1Nickname === multiplayerSession.nickname ? gameData.player2Nickname : gameData.player1Nickname}!`)
+              setMultiplayerPhase('playing')
+              // TODO: Load the game state and start playing
+            }
+          } catch (err) {
+            console.error('Failed to parse game notification:', err)
+          }
+        })
+
         // Request initial player list
         fetchPlayerList()
       },
@@ -1092,14 +1109,36 @@ export default function App() {
   }
 
   function renderMultiplayerSecretSetup() {
-    const handleSetSecret = () => {
-      if (multiplayerSecret.some((c) => c == null)) {
+    const handleSetSecret = async () => {
+      if (multiplayerSecret.some((c) => c == null) || !multiplayerSession || !multiplayerOpponent) {
         return
       }
       
-      // TODO: Send secret to backend and wait for opponent
-      setMultiplayerPhase('waiting')
-      console.log('Secret set:', multiplayerSecret)
+      try {
+        setLoading(true)
+        const response = await fetch(
+          `${API_BASE_URL}/multiplayer/game/set-secret?nickname=${multiplayerSession.nickname}&opponentNickname=${multiplayerOpponent}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: multiplayerSecret })
+          }
+        )
+        
+        if (response.ok) {
+          const data = await response.json()
+          console.log('Secret set response:', data)
+          setMultiplayerPhase('waiting')
+        } else {
+          const errorData = await response.json()
+          setError(errorData.message || 'Failed to set secret')
+        }
+      } catch (err) {
+        console.error('Failed to set secret:', err)
+        setError('Failed to set secret')
+      } finally {
+        setLoading(false)
+      }
     }
     
     return (

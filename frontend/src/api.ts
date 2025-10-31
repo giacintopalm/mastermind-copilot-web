@@ -235,6 +235,29 @@ class MultiplayerApiService {
     })
     return this.handleResponse(response)
   }
+
+  /**
+   * Set player's secret and create/join game
+   */
+  async setSecret(nickname: string, opponentNickname: string, secret: Color[]): Promise<any> {
+    const response = await fetch(
+      `${API_BASE_URL}/multiplayer/game/set-secret?nickname=${nickname}&opponentNickname=${opponentNickname}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret })
+      }
+    )
+    return this.handleResponse(response)
+  }
+
+  /**
+   * Get current game match status
+   */
+  async getGameStatus(nickname: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/multiplayer/game/status?nickname=${nickname}`)
+    return this.handleResponse(response)
+  }
 }
 
 export const multiplayerApi = new MultiplayerApiService()
