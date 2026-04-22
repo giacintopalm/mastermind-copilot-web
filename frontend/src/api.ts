@@ -1,6 +1,6 @@
 // API service for communicating with the Java backend
 const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:8080/api'
+  ? (import.meta.env.VITE_API_BASE_URL || 'https://app-backend-y7teeb42qtz4k.azurewebsites.net/api')
   : 'https://app-backend-y7teeb42qtz4k.azurewebsites.net/api'
 
 export { API_BASE_URL }
@@ -262,3 +262,30 @@ class MultiplayerApiService {
 }
 
 export const multiplayerApi = new MultiplayerApiService()
+
+class LeaderboardApiService {
+  private async handleResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const message = errorData.message || `HTTP ${response.status}: ${response.statusText}`
+      throw new ApiError(message, response.status)
+    }
+    return response.json()
+  }
+
+  async getTop(limit: number = 10): Promise<Array<{ nickname: string; wins: number; games: number; avgGuesses: number }>> {
+    const response = await fetch(`${API_BASE_URL}/leaderboard/top?limit=${limit}`)
+    return this.handleResponse(response)
+  }
+
+  async recordResult(payload: { nickname: string; result: string; guessCount?: number; opponent?: string; matchId?: string }) {
+    const response = await fetch(`${API_BASE_URL}/leaderboard/result`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    return this.handleResponse(response)
+  }
+}
+
+export const leaderboardApi = new LeaderboardApiService()

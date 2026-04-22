@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import type { MouseEvent, DragEvent } from 'react'
 import { gameApi, Color, GameState, GuessAttempt, ApiError, API_BASE_URL } from './api'
+import Leaderboard from './Leaderboard'
 import SockJS from 'sockjs-client'
 import { Client, IMessage } from '@stomp/stompjs'
 
 const PALETTE: Color[] = ['red', 'blue', 'green', 'yellow', 'purple', 'cyan']
 const SLOT_COUNT = 4
+const TURN_TIME_LIMIT_SECONDS = 30
 
 type GameMode = 'solo' | 'computer' | 'multiplayer'
 type GamePhase = 'setup' | 'playing' | 'finished'
@@ -54,6 +56,9 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [secondsLeft, setSecondsLeft] = useState(TURN_TIME_LIMIT_SECONDS)
+  const timeoutInProgressRef = useRef(false)
 
   const win = useMemo(() => {
     if (!gameState || !gameState.history?.length) return false
@@ -69,6 +74,33 @@ export default function App() {
 
   const gameOver = gameState?.gameOver ?? false
   const computerGameOver = computerGameState?.gameOver ?? false
+
+  const isTimedTurnActive = useMemo(() => {
+    if (loading) return false
+
+    if (gameMode === 'solo') {
+      return gamePhase === 'playing' && !!gameState && !gameOver
+    }
+
+    if (gameMode === 'computer') {
+      return gamePhase === 'playing' && currentTurn === 'user' && !!gameState && !gameOver
+    }
+
+    if (gameMode === 'multiplayer') {
+      return multiplayerPhase === 'playing' && !!myGameState && !myGameState.gameOver
+    }
+
+    return false
+  }, [
+    loading,
+    gameMode,
+    gamePhase,
+    gameState,
+    gameOver,
+    currentTurn,
+    multiplayerPhase,
+    myGameState
+  ])
   
   // Determine game winner in computer mode
   const gameWinner = useMemo(() => {
@@ -99,6 +131,37 @@ export default function App() {
       resetComputerMode()
     }
   }, [gameMode])
+
+  // Per-move countdown timer
+  useEffect(() => {
+    if (!isTimedTurnActive) {
+      setSecondsLeft(TURN_TIME_LIMIT_SECONDS)
+      return
+    }
+
+    setSecondsLeft(TURN_TIME_LIMIT_SECONDS)
+    const interval = setInterval(() => {
+      setSecondsLeft((prev) => Math.max(prev - 1, 0))
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [
+    isTimedTurnActive,
+    gameState?.history?.length,
+    myGameState?.history?.length,
+    currentTurn,
+    multiplayerPhase
+  ])
+
+  useEffect(() => {
+    if (!isTimedTurnActive || secondsLeft > 0 || loading) return
+    if (timeoutInProgressRef.current) return
+
+    timeoutInProgressRef.current = true
+    void handleTurnTimeout().finally(() => {
+      timeoutInProgressRef.current = false
+    })
+  }, [isTimedTurnActive, secondsLeft, loading])
 
   // Auto-trigger computer moves
   useEffect(() => {
@@ -625,6 +688,74 @@ export default function App() {
     }
   }
 
+  function getRandomColor(): Color {
+    return PALETTE[Math.floor(Math.random() * PALETTE.length)]
+  }
+
+  function getTimeoutGuess(baseGuess: Color[]): Color[] {
+    return baseGuess.map((c) => ((c as Color | null) ?? getRandomColor()))
+  }
+
+  async function handleTurnTimeout() {
+    setError('Tempo scaduto: mossa inviata automaticamente.')
+
+    const timedGuess = getTimeoutGuess(current)
+
+    try {
+      setLoading(true)
+
+      if (gameMode === 'multiplayer') {
+        if (!myGameId || !myGameState) return
+
+        const updatedGame = await gameApi.submitGuess(myGameId, timedGuess)
+        setMyGameState(updatedGame)
+        setCurrent(Array(SLOT_COUNT).fill(null as unknown as Color))
+        setSelectedSlot(0)
+
+        if (
+          updatedGame.gameOver ||
+          (updatedGame.history.length > 0 &&
+            updatedGame.history[updatedGame.history.length - 1].feedback.exact === SLOT_COUNT)
+        ) {
+          setMultiplayerPhase('finished')
+        }
+
+        return
+      }
+
+      if (!gameState || gameOver) return
+
+      const updatedGame = await gameApi.submitGuess(gameState.id, timedGuess)
+      setGameState(updatedGame)
+      setCurrent(Array(SLOT_COUNT).fill(null as unknown as Color))
+      setSelectedSlot(0)
+
+      if (gameMode === 'computer' && gamePhase === 'playing') {
+        const userWon =
+          updatedGame.history.length > 0 &&
+          updatedGame.history[updatedGame.history.length - 1].feedback.exact === SLOT_COUNT
+
+        if (userWon) {
+          if (!computerGameOver && computerGameState) {
+            setCurrentTurn('computer')
+          } else {
+            setGamePhase('finished')
+          }
+        } else if (updatedGame.gameOver) {
+          setGamePhase('finished')
+        } else {
+          setCurrentTurn('computer')
+        }
+      }
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to submit timeout guess'
+      setError(message)
+      console.error('Error submitting timeout guess:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function submitMultiplayerGuess() {
     if (loading || !myGameState || !myGameId) return
     if (current.some((c: Color | null) => c == null)) return
@@ -820,7 +951,8 @@ export default function App() {
       // Get the transferred data
       const data = JSON.parse(e.dataTransfer.getData('text/plain'))
       const { fromSlot } = data
-      console.log('Drop data:', data) // Debug log
+      const color = data.color
+      // console.log('Drop data:', data) // Debug log
       
       // Only remove if dragged from a slot (not from palette)
       if (fromSlot !== null && fromSlot !== undefined) {
@@ -908,11 +1040,22 @@ export default function App() {
           <button className="secondary action-button" onClick={resetGame} disabled={loading}>
             New Game
           </button>
+          <button
+            className={`secondary action-button ${showLeaderboard ? 'primary' : ''}`}
+            onClick={() => setShowLeaderboard(s => !s)}
+            style={{ marginLeft: '8px' }}
+          >
+            Leaderboard
+          </button>
         </div>
       </header>
 
       <main>
-        {gameMode === 'solo' ? renderSoloMode() : gameMode === 'computer' ? renderComputerMode() : renderMultiplayerMode()}
+        {showLeaderboard ? (
+          <Leaderboard />
+        ) : (
+          gameMode === 'solo' ? renderSoloMode() : gameMode === 'computer' ? renderComputerMode() : renderMultiplayerMode()
+        )}
         
         {error && (
           <div className="error-message">
@@ -1152,6 +1295,9 @@ export default function App() {
             <h2>Your Guess</h2>
           </div>
           <div className="section-content">
+            <div className={`turn-timer ${secondsLeft <= 10 ? 'danger' : ''}`}>
+              Tempo rimasto: <strong>{secondsLeft}s</strong>
+            </div>
             <div className="game-layout">
               <div className="guess-container">
                 <div className="attempt-number current">?</div>
@@ -1562,6 +1708,10 @@ export default function App() {
         <div className="section-content">
           {/* Current guess row for my board */}
           {isMyBoard && !playerGameOver && (
+            <>
+            <div className={`turn-timer ${secondsLeft <= 10 ? 'danger' : ''}`}>
+              Tempo rimasto: <strong>{secondsLeft}s</strong>
+            </div>
             <div className="guess-container">
               <div className="attempt-number current">?</div>
               <div className="slots">
@@ -1596,6 +1746,7 @@ export default function App() {
                 </button>
               </div>
             </div>
+            </>
           )}
 
           {/* Spacer for opponent board */}
@@ -1819,6 +1970,10 @@ export default function App() {
         </div>
         <div className="section-content">
           {gamePhase === 'playing' && !playerGameOver && player === 'user' && (
+            <>
+            <div className={`turn-timer ${secondsLeft <= 10 ? 'danger' : ''}`}>
+              Tempo rimasto: <strong>{secondsLeft}s</strong>
+            </div>
             <div className="guess-container">
               <div className="attempt-number current">?</div>
               <div className="slots">
@@ -1861,6 +2016,7 @@ export default function App() {
                 </button>
               </div>
             </div>
+            </>
           )}
           
           {/* Computer spacer to align with user's guess container */}
