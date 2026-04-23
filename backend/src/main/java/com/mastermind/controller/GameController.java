@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/games")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173", "https://nice-sand-04c84f41e.1.azurestaticapps.net", "https://mmgame.hyacinthwings.co.uk"})
 public class GameController {
 
     private static final Logger logger = LoggerFactory.getLogger(GameController.class);

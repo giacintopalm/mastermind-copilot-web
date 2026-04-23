@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 @Configuration
 public class CorsConfig implements WebMvcConfigurer {
 
-    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:3001,http://localhost:5173}")
+    @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:3001,http://localhost:5173,https://nice-sand-04c84f41e.1.azurestaticapps.net,https://mmgame.hyacinthwings.co.uk}")
     private String allowedOrigins;
 
     @Value("${cors.allowed-methods:GET,POST,PUT,DELETE,OPTIONS}")
