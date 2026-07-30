@@ -1,5 +1,6 @@
 package com.mastermind.scheduler;
 
+import com.mastermind.service.GameMatchService;
 import com.mastermind.service.PlayerSessionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,12 +16,15 @@ public class PlayerCleanupScheduler {
 
     private final PlayerSessionService playerSessionService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final GameMatchService gameMatchService;
 
     @Autowired
     public PlayerCleanupScheduler(PlayerSessionService playerSessionService,
-                                  SimpMessagingTemplate messagingTemplate) {
+                                  SimpMessagingTemplate messagingTemplate,
+                                  GameMatchService gameMatchService) {
         this.playerSessionService = playerSessionService;
         this.messagingTemplate = messagingTemplate;
+        this.gameMatchService = gameMatchService;
     }
 
     /**
@@ -28,6 +32,11 @@ public class PlayerCleanupScheduler {
      */
     @Scheduled(fixedRate = 120000) // 2 minutes
     public void cleanupInactivePlayers() {
+        // Cancel any active matches for players about to be removed
+        playerSessionService.getInactivePlayerNicknames().forEach(nickname ->
+            gameMatchService.cancelMatch(nickname)
+        );
+
         int removed = playerSessionService.removeInactivePlayers();
         if (removed > 0) {
             logger.info("Removed {} inactive player(s)", removed);

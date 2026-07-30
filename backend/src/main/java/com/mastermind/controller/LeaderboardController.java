@@ -47,4 +47,9 @@ public class LeaderboardController {
     public ResponseEntity<List<LeaderboardEntry>> getTop(@RequestParam(defaultValue = "10") int limit) {
         return ResponseEntity.ok(leaderboardService.getTopPlayers(limit));
     }
+
+    @GetMapping("/multiplayer")
+    public ResponseEntity<List<LeaderboardEntry>> getMultiplayerTop(@RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(leaderboardService.getTopMultiplayerPlayers(limit));
+    }
 }

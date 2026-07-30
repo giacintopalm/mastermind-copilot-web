@@ -128,6 +128,18 @@ public class PlayerSessionService {
     }
 
     /**
+     * Get nicknames of players that would be removed as inactive
+     */
+    public List<String> getInactivePlayerNicknames() {
+        java.time.LocalDateTime cutoffTime = java.time.LocalDateTime.now().minusMinutes(10);
+        return activeSessions.values().stream()
+                .filter(session -> session.getStatus() == PlayerSession.PlayerStatus.AVAILABLE
+                        && session.getLastActivity().isBefore(cutoffTime))
+                .map(PlayerSession::getNickname)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Remove inactive players (no activity for more than 10 minutes)
      */
     public int removeInactivePlayers() {

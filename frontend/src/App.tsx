@@ -59,6 +59,7 @@ export default function App() {
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
+  const [leaderboardMode, setLeaderboardMode] = useState<'all' | 'multiplayer'>('all')
   const [secondsLeft, setSecondsLeft] = useState(TURN_TIME_LIMIT_SECONDS)
   const timeoutInProgressRef = useRef(false)
 

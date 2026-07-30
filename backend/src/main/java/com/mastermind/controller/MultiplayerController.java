@@ -66,6 +66,10 @@ public class MultiplayerController {
      */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@RequestParam String sessionId) {
+        playerSessionService.getSession(sessionId).ifPresent(session ->
+            gameMatchService.endMatch(gameMatchService.getMatchByPlayer(session.getNickname())
+                .map(m -> m.getMatchId()).orElse(null))
+        );
         playerSessionService.logout(sessionId);
         
         // Broadcast updated player list to all connected clients
@@ -317,6 +321,11 @@ public class MultiplayerController {
      */
     @PostMapping("/player/available")
     public ResponseEntity<Void> markPlayerAvailable(@RequestParam String nickname) {
+        // End any active match and record results before marking available
+        gameMatchService.getMatchByPlayer(nickname).ifPresent(match ->
+            gameMatchService.endMatch(match.getMatchId())
+        );
+
         playerSessionService.updatePlayerActivityByNickname(nickname);
         playerSessionService.getSessionByNickname(nickname)
                 .ifPresent(s -> playerSessionService.updatePlayerStatus(s.getSessionId(), PlayerSession.PlayerStatus.AVAILABLE));

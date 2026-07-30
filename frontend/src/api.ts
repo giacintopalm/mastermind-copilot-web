@@ -273,8 +273,13 @@ class LeaderboardApiService {
     return response.json()
   }
 
-  async getTop(limit: number = 10): Promise<Array<{ nickname: string; wins: number; games: number; avgGuesses: number }>> {
+  async getTop(limit: number = 10): Promise<Array<{ nickname: string; wins: number; games: number; avgGuesses: number; bestGuesses: number | null }>> {
     const response = await fetch(`${API_BASE_URL}/leaderboard/top?limit=${limit}`)
+    return this.handleResponse(response)
+  }
+
+  async getMultiplayerTop(limit: number = 20): Promise<Array<{ nickname: string; wins: number; games: number; avgGuesses: number; bestGuesses: number | null }>> {
+    const response = await fetch(`${API_BASE_URL}/leaderboard/multiplayer?limit=${limit}`)
     return this.handleResponse(response)
   }
 

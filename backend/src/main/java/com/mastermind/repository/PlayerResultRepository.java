@@ -11,10 +11,24 @@ public interface PlayerResultRepository extends JpaRepository<PlayerResult, Long
       SELECT p.nickname as nickname,
              SUM(CASE WHEN p.result = 'WIN' THEN 1 ELSE 0 END) as wins,
              COUNT(p) as games,
-             AVG(p.guessCount) as avgGuesses
+             AVG(p.guessCount) as avgGuesses,
+             MIN(CASE WHEN p.result = 'WIN' THEN p.guessCount END) as bestGuesses
       FROM PlayerResult p
       GROUP BY p.nickname
       ORDER BY wins DESC, avgGuesses ASC
     """)
     List<Object[]> findLeaderboardRaw();
+
+    @Query("""
+      SELECT p.nickname as nickname,
+             SUM(CASE WHEN p.result = 'WIN' THEN 1 ELSE 0 END) as wins,
+             COUNT(p) as games,
+             AVG(p.guessCount) as avgGuesses,
+             MIN(CASE WHEN p.result = 'WIN' THEN p.guessCount END) as bestGuesses
+      FROM PlayerResult p
+      WHERE p.opponent IS NOT NULL
+      GROUP BY p.nickname
+      ORDER BY wins DESC, avgGuesses ASC
+    """)
+    List<Object[]> findMultiplayerLeaderboardRaw();
 }

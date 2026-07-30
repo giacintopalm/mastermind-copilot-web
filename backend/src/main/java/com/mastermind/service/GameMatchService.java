@@ -105,6 +105,9 @@ public class GameMatchService {
      * End a match
      */
     public void endMatch(String matchId) {
+        if (matchId == null) {
+            return;
+        }
         GameMatch match = matches.remove(matchId);
         if (match != null) {
             // Try to record results for leaderboard before cleaning match
