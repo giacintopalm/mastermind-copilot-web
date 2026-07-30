@@ -6,10 +6,23 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+/**
+ * WebSocket configuration for real-time multiplayer communication.
+ * Enables STOMP messaging over WebSocket using SockJS fallback transport.
+ * Clients subscribe to {@code /topic/*} destinations to receive push updates
+ * such as player-list changes, invitations, and match state transitions.
+ */
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    /**
+     * Configures the in-memory STOMP message broker.
+     * Outbound messages are routed to {@code /topic} destinations; inbound
+     * messages from clients must be prefixed with {@code /app}.
+     *
+     * @param config the message broker registry to configure
+     */
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         // Enable a simple in-memory message broker to carry messages back to the client
@@ -18,6 +31,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         config.setApplicationDestinationPrefixes("/app");
     }
 
+    /**
+     * Registers the {@code /ws} STOMP endpoint with SockJS fallback support.
+     * Allowed origin patterns are explicitly enumerated for CORS safety.
+     *
+     * @param registry the STOMP endpoint registry
+     */
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Register the WebSocket endpoint that clients will connect to

@@ -4,6 +4,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Data Transfer Object for player login requests.
+ * The nickname must be 3–20 alphanumeric characters (underscores and hyphens allowed).
+ */
 public class LoginRequest {
     @NotBlank(message = "Nickname is required")
     @Size(min = 3, max = 20, message = "Nickname must be between 3 and 20 characters")

@@ -1,5 +1,9 @@
 package com.mastermind.dto;
 
+/**
+ * Data Transfer Object for a single leaderboard entry.
+ * Aggregates a player's win count, total game count, and average guess count.
+ */
 public class LeaderboardEntry {
     private String nickname;
     private long wins;

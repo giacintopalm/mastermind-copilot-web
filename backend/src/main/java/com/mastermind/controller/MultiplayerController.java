@@ -20,6 +20,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * REST and WebSocket controller for multiplayer game operations.
+ * Handles player sessions, invitations, game match setup, and real-time
+ * notifications via STOMP/WebSocket.
+ */
 @RestController
 @RequestMapping("/multiplayer")
 public class MultiplayerController {
@@ -44,7 +49,11 @@ public class MultiplayerController {
     }
 
     /**
-     * Login endpoint - Creates a new player session
+     * Login endpoint - Creates a new player session.
+     *
+     * @param request the login request containing the desired nickname
+     * @return {@code 200 OK} with the session ID and nickname on success, or
+     *         {@code 409 Conflict} if the nickname is already taken
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
@@ -62,7 +71,10 @@ public class MultiplayerController {
     }
 
     /**
-     * Logout endpoint - Removes a player session
+     * Logout endpoint - Removes a player session.
+     *
+     * @param sessionId the session ID of the player to log out
+     * @return {@code 200 OK} after removing the session and broadcasting the updated player list
      */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@RequestParam String sessionId) {
@@ -75,7 +87,10 @@ public class MultiplayerController {
     }
 
     /**
-     * Get list of active players
+     * Get list of active players.
+     *
+     * @param exclude session ID of the requesting player to exclude from the list (optional)
+     * @return {@code 200 OK} with the list of currently connected players
      */
     @GetMapping("/players")
     public ResponseEntity<PlayerListResponse> getPlayers(@RequestParam(required = false) String exclude) {
@@ -88,7 +103,10 @@ public class MultiplayerController {
     }
 
     /**
-     * Check if nickname is available
+     * Check if nickname is available.
+     *
+     * @param nickname the nickname to check
+     * @return {@code 200 OK} with {@code true} if available, {@code false} if already taken
      */
     @GetMapping("/check-nickname")
     public ResponseEntity<Boolean> checkNickname(@RequestParam String nickname) {
@@ -97,7 +115,11 @@ public class MultiplayerController {
     }
 
     /**
-     * WebSocket message handler for requesting player list updates
+     * WebSocket message handler for requesting player list updates.
+     * Clients send a message to {@code /app/players/refresh}; the updated list
+     * is broadcast to all subscribers of {@code /topic/players}.
+     *
+     * @return the current list of connected players
      */
     @MessageMapping("/players/refresh")
     @SendTo("/topic/players")
@@ -106,7 +128,8 @@ public class MultiplayerController {
     }
 
     /**
-     * Broadcast player list to all connected clients via WebSocket
+     * Broadcast player list to all connected clients via WebSocket.
+     * Sends the updated list to the {@code /topic/players} STOMP destination.
      */
     private void broadcastPlayerList() {
         PlayerListResponse playerList = playerSessionService.getPlayerList(null);
@@ -114,7 +137,12 @@ public class MultiplayerController {
     }
 
     /**
-     * Send invitation to another player
+     * Send invitation to another player.
+     *
+     * @param fromNickname the nickname of the player sending the invitation
+     * @param request      the invitation request containing the recipient's nickname
+     * @return {@code 200 OK} with the created invitation, or
+     *         {@code 400 Bad Request} if the invitation cannot be created
      */
     @PostMapping("/invite")
     public ResponseEntity<?> sendInvitation(@RequestParam String fromNickname,
@@ -144,7 +172,12 @@ public class MultiplayerController {
     }
 
     /**
-     * Respond to an invitation (accept or decline)
+     * Respond to an invitation (accept or decline).
+     *
+     * @param nickname the nickname of the player responding
+     * @param request  the action request indicating acceptance or declination and the invitation ID
+     * @return {@code 200 OK} with the updated invitation, or
+     *         {@code 400 Bad Request} if the invitation cannot be found or is no longer pending
      */
     @PostMapping("/invitation/respond")
     public ResponseEntity<?> respondToInvitation(@RequestParam String nickname,
@@ -182,7 +215,11 @@ public class MultiplayerController {
     }
 
     /**
-     * Cancel an invitation
+     * Cancel an invitation.
+     *
+     * @param invitationId the ID of the invitation to cancel
+     * @return {@code 200 OK} with the cancelled invitation, {@code 404 Not Found} if the
+     *         invitation does not exist, or {@code 400 Bad Request} on other errors
      */
     @PostMapping("/invitation/cancel")
     public ResponseEntity<?> cancelInvitation(@RequestParam String invitationId) {
@@ -213,7 +250,15 @@ public class MultiplayerController {
     }
 
     /**
-     * Set player's secret and create game when invitation accepted
+     * Set player's secret and create a game when an invitation is accepted.
+     * When both players have submitted their secrets the match transitions to
+     * the PLAYING state and both are notified via WebSocket.
+     *
+     * @param nickname         the nickname of the player setting their secret
+     * @param opponentNickname the nickname of the opponent
+     * @param request          the request body containing the player's chosen secret colors
+     * @return {@code 200 OK} with the current match state, or
+     *         {@code 400 Bad Request} on error
      */
     @PostMapping("/game/set-secret")
     public ResponseEntity<?> setSecret(@RequestParam String nickname,
@@ -286,7 +331,11 @@ public class MultiplayerController {
     }
 
     /**
-     * Get current match status for a player
+     * Get current match status for a player.
+     *
+     * @param nickname the nickname of the player whose match status is requested
+     * @return {@code 200 OK} with the match state, or {@code 400 Bad Request} if
+     *         the player is not currently in a match
      */
     @GetMapping("/game/status")
     public ResponseEntity<?> getGameStatus(@RequestParam String nickname) {
@@ -313,7 +362,12 @@ public class MultiplayerController {
     }
 
     /**
-     * Mark player as available (returned to lobby)
+     * Mark player as available (returned to lobby).
+     * Updates the player's status to AVAILABLE and broadcasts the updated
+     * player list to all connected clients.
+     *
+     * @param nickname the nickname of the player returning to the lobby
+     * @return {@code 200 OK}
      */
     @PostMapping("/player/available")
     public ResponseEntity<Void> markPlayerAvailable(@RequestParam String nickname) {
