@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -325,5 +326,24 @@ public class MultiplayerController {
         broadcastPlayerList();
         
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * WebSocket chat handler — forwards a chat message to both sender and recipient personal topics.
+     * Request body includes: nickname (sender), to (recipient), message.
+     */
+    @MessageMapping("/chat")
+    public void handleChat(@Payload ChatMessageRequest request) {
+        String safeMessage = request.getMessage() == null ? "" : request.getMessage().trim();
+        if (safeMessage.length() > 500) {
+            safeMessage = safeMessage.substring(0, 500);
+        }
+        ChatMessageResponse response = new ChatMessageResponse(request.getNickname(), safeMessage, System.currentTimeMillis());
+        // Deliver to recipient
+        if (request.getTo() != null && !request.getTo().isBlank()) {
+            messagingTemplate.convertAndSend("/topic/chat/" + request.getTo(), response);
+        }
+        // Echo back to sender so they see their own message
+        messagingTemplate.convertAndSend("/topic/chat/" + request.getNickname(), response);
     }
 }

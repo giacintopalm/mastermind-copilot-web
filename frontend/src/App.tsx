@@ -53,6 +53,11 @@ export default function App() {
   const [opponentGameId, setOpponentGameId] = useState<string | null>(null)
   const [myGameState, setMyGameState] = useState<GameState | null>(null)
   const [opponentGameState, setOpponentGameState] = useState<GameState | null>(null)
+
+  // Multiplayer chat state
+  const [chatMessages, setChatMessages] = useState<Array<{nickname: string, message: string, timestamp: number}>>([])
+  const [chatInput, setChatInput] = useState('')
+  const chatEndRef = useRef<HTMLDivElement | null>(null)
   
   // Common state
   const [loading, setLoading] = useState(false)
@@ -259,6 +264,23 @@ export default function App() {
           }
         })
 
+        // Subscribe to chat for this player's room
+        // Room ID is derived later (when opponent is known) — we use a mutable ref approach:
+        // the subscription is set up here with a placeholder and re-used via stompClientRef
+        // Instead, we subscribe to a personal chat inbox topic: /topic/chat/{nickname}
+        client.subscribe(`/topic/chat/${multiplayerSession.nickname}`, (message: IMessage) => {
+          try {
+            const chatMsg = JSON.parse(message.body)
+            setChatMessages(prev => [...prev, {
+              nickname: chatMsg.nickname,
+              message: chatMsg.message,
+              timestamp: chatMsg.timestamp ?? Date.now()
+            }])
+          } catch (err) {
+            console.error('Failed to parse chat message:', err)
+          }
+        })
+
         // Request initial player list
         fetchPlayerList()
       },
@@ -280,6 +302,11 @@ export default function App() {
       }
     }
   }, [multiplayerSession])
+
+  // Auto-scroll chat to latest message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
 
   // Poll for match status when waiting for opponent's secret
   useEffect(() => {
@@ -790,7 +817,21 @@ export default function App() {
   function randomGuess(): Color[] {
     return Array.from({ length: SLOT_COUNT }, () => PALETTE[Math.floor(Math.random() * PALETTE.length)])
   }
- 
+
+  function sendChatMessage() {
+    const trimmed = chatInput.trim()
+    if (!trimmed || !multiplayerSession || !multiplayerOpponent || !stompClientRef.current?.connected) return
+    stompClientRef.current.publish({
+      destination: '/app/chat',
+      body: JSON.stringify({
+        nickname: multiplayerSession.nickname,
+        to: multiplayerOpponent,
+        message: trimmed
+      })
+    })
+    setChatInput('')
+  }
+
   async function makeComputerGuess() {
     if (!computerGameState || computerGameOver || computerThinking) return
     
@@ -1656,6 +1697,39 @@ export default function App() {
           ))}
         </div>
         
+        <div className="chat-panel">
+          <div className="chat-header">💬 Chat with {multiplayerOpponent}</div>
+          <div className="chat-messages">
+            {chatMessages.length === 0 && (
+              <div className="chat-empty">No messages yet. Say hi!</div>
+            )}
+            {chatMessages.map((msg, i) => (
+              <div
+                key={i}
+                className={`chat-message ${msg.nickname === multiplayerSession?.nickname ? 'chat-message--me' : 'chat-message--them'}`}
+              >
+                <span className="chat-message-sender">{msg.nickname}</span>
+                <span className="chat-message-text">{msg.message}</span>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+          <div className="chat-input-row">
+            <input
+              type="text"
+              className="chat-input"
+              placeholder="Type a message..."
+              value={chatInput}
+              maxLength={500}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') sendChatMessage() }}
+            />
+            <button className="chat-send-btn" onClick={sendChatMessage} disabled={!chatInput.trim()}>
+              Send
+            </button>
+          </div>
+        </div>
+
         {(multiplayerPhase === 'finished' || myGameOver || opponentGameOver) && (
           <div className="game-over-section">
             <h3>Game Over!</h3>
@@ -1694,6 +1768,8 @@ export default function App() {
                 setOpponentGameState(null)
                 setCurrent(Array(SLOT_COUNT).fill(null as unknown as Color))
                 setSelectedSlot(0)
+                setChatMessages([])
+                setChatInput('')
               }}
             >
               Return to Lobby

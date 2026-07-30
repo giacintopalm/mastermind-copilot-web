@@ -87,6 +87,11 @@
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
         </dependency>
+        <!-- Flyway SQL Server support (required in Flyway 10.x used by Spring Boot 3.5.x) -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-sqlserver</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
