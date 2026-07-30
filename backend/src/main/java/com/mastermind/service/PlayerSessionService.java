@@ -8,6 +8,11 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+/**
+ * Service for managing active player sessions in the multiplayer lobby.
+ * Sessions are stored in memory and keyed by session ID; a secondary map provides
+ * case-insensitive lookup by nickname.
+ */
 @Service
 public class PlayerSessionService {
     // Thread-safe map to store active player sessions
@@ -16,21 +21,31 @@ public class PlayerSessionService {
     private final Map<String, String> nicknameToSessionId = new ConcurrentHashMap<>();
 
     /**
-     * Check if a nickname is already in use
+     * Check if a nickname is already in use.
+     *
+     * @param nickname the nickname to check (case-insensitive)
+     * @return {@code true} if the nickname is taken
      */
     public boolean isNicknameTaken(String nickname) {
         return nicknameToSessionId.containsKey(nickname.toLowerCase());
     }
 
     /**
-     * Check if a nickname is connected (logged in)
+     * Check if a nickname is connected (logged in).
+     *
+     * @param nickname the nickname to check (case-insensitive)
+     * @return {@code true} if the player with this nickname has an active session
      */
     public boolean isNicknameConnected(String nickname) {
         return nicknameToSessionId.containsKey(nickname.toLowerCase());
     }
 
     /**
-     * Login a player with a unique nickname
+     * Login a player with a unique nickname.
+     *
+     * @param nickname the desired display name (leading/trailing whitespace is trimmed)
+     * @return the newly created {@link PlayerSession}
+     * @throws IllegalArgumentException if the nickname is already in use
      */
     public PlayerSession login(String nickname) {
         String normalizedNickname = nickname.trim();
@@ -54,7 +69,10 @@ public class PlayerSessionService {
     }
 
     /**
-     * Logout a player by session ID
+     * Logout a player by session ID.
+     * If the session does not exist this method is a no-op.
+     *
+     * @param sessionId the session ID of the player to remove
      */
     public void logout(String sessionId) {
         PlayerSession session = activeSessions.remove(sessionId);
@@ -64,21 +82,30 @@ public class PlayerSessionService {
     }
 
     /**
-     * Get a player session by session ID
+     * Get a player session by session ID.
+     *
+     * @param sessionId the session ID to look up
+     * @return an {@link Optional} containing the {@link PlayerSession}, or empty if not found
      */
     public Optional<PlayerSession> getSession(String sessionId) {
         return Optional.ofNullable(activeSessions.get(sessionId));
     }
 
     /**
-     * Get all active player sessions
+     * Get all active player sessions.
+     *
+     * @return a snapshot list of all currently active {@link PlayerSession} objects
      */
     public List<PlayerSession> getAllActivePlayers() {
         return new ArrayList<>(activeSessions.values());
     }
 
     /**
-     * Get list of active players (excluding the current player if sessionId provided)
+     * Get list of active players (excluding the current player if a session ID is provided).
+     *
+     * @param excludeSessionId session ID to exclude from the returned list, or {@code null}
+     *                         to include all players
+     * @return a {@link PlayerListResponse} sorted alphabetically by nickname
      */
     public PlayerListResponse getPlayerList(String excludeSessionId) {
         List<PlayerListResponse.PlayerInfo> players = activeSessions.values().stream()
@@ -91,7 +118,11 @@ public class PlayerSessionService {
     }
 
     /**
-     * Update player status
+     * Update player status.
+     * If the session does not exist this method is a no-op.
+     *
+     * @param sessionId the session ID of the player whose status should be updated
+     * @param status    the new {@link PlayerSession.PlayerStatus}
      */
     public void updatePlayerStatus(String sessionId, PlayerSession.PlayerStatus status) {
         PlayerSession session = activeSessions.get(sessionId);
@@ -101,14 +132,19 @@ public class PlayerSessionService {
     }
 
     /**
-     * Get total count of active players
+     * Get total count of active players.
+     *
+     * @return the number of players with active sessions
      */
     public int getActivePlayerCount() {
         return activeSessions.size();
     }
 
     /**
-     * Update player's last activity timestamp
+     * Update player's last activity timestamp.
+     * If the session does not exist this method is a no-op.
+     *
+     * @param sessionId the session ID of the player to update
      */
     public void updatePlayerActivity(String sessionId) {
         PlayerSession session = activeSessions.get(sessionId);
@@ -118,7 +154,10 @@ public class PlayerSessionService {
     }
 
     /**
-     * Update player's last activity by nickname
+     * Update player's last activity by nickname.
+     * If no session exists for the nickname this method is a no-op.
+     *
+     * @param nickname the player's nickname (case-insensitive)
      */
     public void updatePlayerActivityByNickname(String nickname) {
         String sessionId = nicknameToSessionId.get(nickname.toLowerCase());
@@ -128,7 +167,10 @@ public class PlayerSessionService {
     }
 
     /**
-     * Remove inactive players (no activity for more than 10 minutes)
+     * Remove inactive players (no activity for more than 10 minutes).
+     * Only players with {@code AVAILABLE} status are removed; players in a game are kept.
+     *
+     * @return the number of players that were removed
      */
     public int removeInactivePlayers() {
         java.time.LocalDateTime cutoffTime = java.time.LocalDateTime.now().minusMinutes(10);
@@ -151,7 +193,10 @@ public class PlayerSessionService {
     }
 
     /**
-     * Get a player session by nickname
+     * Get a player session by nickname.
+     *
+     * @param nickname the player's nickname (case-insensitive)
+     * @return an {@link Optional} containing the {@link PlayerSession}, or empty if not found
      */
     public Optional<PlayerSession> getSessionByNickname(String nickname) {
         String sessionId = nicknameToSessionId.get(nickname.toLowerCase());

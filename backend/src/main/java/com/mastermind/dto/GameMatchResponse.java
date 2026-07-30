@@ -1,5 +1,9 @@
 package com.mastermind.dto;
 
+/**
+ * Data Transfer Object for multiplayer match state responses.
+ * Carries match metadata and per-player readiness flags to the frontend.
+ */
 public class GameMatchResponse {
     private String matchId;
     private String player1Nickname;

@@ -3,6 +3,10 @@ package com.mastermind.dto;
 import com.mastermind.model.PlayerSession;
 import java.util.List;
 
+/**
+ * Data Transfer Object for the list of active players in the lobby.
+ * Contains metadata about each player such as session ID and current status.
+ */
 public class PlayerListResponse {
     private List<PlayerInfo> players;
     private int totalPlayers;
@@ -32,6 +36,9 @@ public class PlayerListResponse {
         this.totalPlayers = totalPlayers;
     }
 
+    /**
+     * Lightweight summary of a single connected player.
+     */
     public static class PlayerInfo {
         private String sessionId;
         private String nickname;
@@ -46,6 +53,12 @@ public class PlayerListResponse {
             this.status = status;
         }
 
+        /**
+         * Construct a {@code PlayerInfo} from the given {@link PlayerSession}.
+         *
+         * @param session the active player session to summarise
+         * @return a new {@code PlayerInfo} containing the session ID, nickname, and status
+         */
         public static PlayerInfo from(PlayerSession session) {
             return new PlayerInfo(session.getSessionId(), session.getNickname(), session.getStatus());
         }

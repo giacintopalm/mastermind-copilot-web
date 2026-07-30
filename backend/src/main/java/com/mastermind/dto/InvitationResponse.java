@@ -1,5 +1,9 @@
 package com.mastermind.dto;
 
+/**
+ * Data Transfer Object representing the state of a game invitation.
+ * Returned when an invitation is created, accepted, declined, or cancelled.
+ */
 public class InvitationResponse {
     private String invitationId;
     private String fromNickname;

@@ -37,6 +37,9 @@ public class GameResponse {
 
     /**
      * Create a GameResponse from a Game entity, excluding the secret.
+     *
+     * @param game the game entity to convert
+     * @return a {@code GameResponse} populated with the game's public state
      */
     public static GameResponse fromGame(Game game) {
         GameResponse response = new GameResponse();

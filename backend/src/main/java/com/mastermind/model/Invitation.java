@@ -3,6 +3,11 @@ package com.mastermind.model;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Represents a player-to-player game invitation.
+ * An invitation starts as PENDING and transitions to ACCEPTED, DECLINED,
+ * EXPIRED, or CANCELLED depending on recipient action or time-out.
+ */
 public class Invitation {
     private String invitationId;
     private String fromNickname;
@@ -70,6 +75,9 @@ public class Invitation {
         this.respondedAt = respondedAt;
     }
 
+    /**
+     * Possible lifecycle states for an invitation.
+     */
     public enum InvitationStatus {
         PENDING,
         ACCEPTED,

@@ -1,5 +1,9 @@
 package com.mastermind.dto;
 
+/**
+ * Data Transfer Object for accepting or declining a game invitation.
+ * Contains the invitation ID and a flag indicating the player's decision.
+ */
 public class InvitationActionRequest {
     private String invitationId;
     private boolean accept;

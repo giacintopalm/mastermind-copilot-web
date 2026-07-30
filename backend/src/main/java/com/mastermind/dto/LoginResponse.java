@@ -1,5 +1,9 @@
 package com.mastermind.dto;
 
+/**
+ * Data Transfer Object for login responses.
+ * On success, carries the session ID and nickname; on failure, carries an error message.
+ */
 public class LoginResponse {
     private boolean success;
     private String sessionId;
@@ -16,10 +20,23 @@ public class LoginResponse {
         this.message = message;
     }
 
+    /**
+     * Create a successful login response.
+     *
+     * @param sessionId the newly created session ID
+     * @param nickname  the player's display name
+     * @return a {@code LoginResponse} with {@code success = true}
+     */
     public static LoginResponse success(String sessionId, String nickname) {
         return new LoginResponse(true, sessionId, nickname, "Login successful");
     }
 
+    /**
+     * Create a failed login response.
+     *
+     * @param message a human-readable explanation of why login failed
+     * @return a {@code LoginResponse} with {@code success = false}
+     */
     public static LoginResponse failure(String message) {
         return new LoginResponse(false, null, null, message);
     }

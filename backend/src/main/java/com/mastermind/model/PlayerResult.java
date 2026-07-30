@@ -3,6 +3,10 @@ package com.mastermind.model;
 import jakarta.persistence.*;
 import java.time.Instant;
 
+/**
+ * JPA entity that records the outcome of a completed game for leaderboard purposes.
+ * Each row stores one player's result for a single game or match.
+ */
 @Entity
 @Table(name = "player_results", indexes = {
         @Index(name = "idx_player_nickname", columnList = "nickname")

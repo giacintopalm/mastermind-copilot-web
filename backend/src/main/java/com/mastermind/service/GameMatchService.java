@@ -11,6 +11,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Service for managing multiplayer game matches.
+ * Tracks active matches, maps player nicknames to match IDs, and records
+ * results to the leaderboard when a match ends.
+ */
 @Service
 public class GameMatchService {
     private final Map<String, GameMatch> matches = new ConcurrentHashMap<>();
@@ -18,13 +23,24 @@ public class GameMatchService {
     private final GameService gameService;
     private final LeaderboardService leaderboardService;
 
+    /**
+     * Creates a {@code GameMatchService} with the given dependencies.
+     *
+     * @param gameService        the service used to retrieve individual game state
+     * @param leaderboardService the service used to persist match results
+     */
     public GameMatchService(GameService gameService, LeaderboardService leaderboardService) {
         this.gameService = gameService;
         this.leaderboardService = leaderboardService;
     }
 
     /**
-     * Create a new game match between two players
+     * Create a new game match between two players.
+     *
+     * @param player1Nickname the nickname of the first player
+     * @param player2Nickname the nickname of the second player
+     * @return the newly created {@link GameMatch}
+     * @throws IllegalStateException if either player is already in a match
      */
     public GameMatch createMatch(String player1Nickname, String player2Nickname) {
         // Check if either player is already in a match
@@ -44,7 +60,13 @@ public class GameMatchService {
     }
 
     /**
-     * Set a player's game ID (when they submit their secret)
+     * Set a player's game ID (when they submit their secret).
+     * If both players are ready after this call the match status transitions to PLAYING.
+     *
+     * @param nickname the nickname of the player whose game ID is being set
+     * @param gameId   the ID of the game created for this player's opponent to guess
+     * @return the updated {@link GameMatch}
+     * @throws IllegalStateException if the player is not in a match or the match cannot be found
      */
     public GameMatch setPlayerGame(String nickname, String gameId) {
         String matchId = nicknameToMatchId.get(nickname);
@@ -77,14 +99,20 @@ public class GameMatchService {
     }
 
     /**
-     * Get match by ID
+     * Get match by ID.
+     *
+     * @param matchId the unique match identifier
+     * @return an {@link Optional} containing the match, or empty if not found
      */
     public Optional<GameMatch> getMatch(String matchId) {
         return Optional.ofNullable(matches.get(matchId));
     }
 
     /**
-     * Get match by player nickname
+     * Get match by player nickname.
+     *
+     * @param nickname the player's nickname
+     * @return an {@link Optional} containing the player's current match, or empty if not in one
      */
     public Optional<GameMatch> getMatchByPlayer(String nickname) {
         String matchId = nicknameToMatchId.get(nickname);
@@ -95,14 +123,20 @@ public class GameMatchService {
     }
 
     /**
-     * Check if a player is in a match
+     * Check if a player is in a match.
+     *
+     * @param nickname the player's nickname
+     * @return {@code true} if the player is currently in an active match
      */
     public boolean isPlayerInMatch(String nickname) {
         return nicknameToMatchId.containsKey(nickname);
     }
 
     /**
-     * End a match
+     * End a match and record the result to the leaderboard.
+     * Removes the match from in-memory storage and cleans up nickname mappings.
+     *
+     * @param matchId the unique match identifier
      */
     public void endMatch(String matchId) {
         GameMatch match = matches.remove(matchId);
@@ -149,7 +183,9 @@ public class GameMatchService {
     }
 
     /**
-     * Cancel a match (remove player from match)
+     * Cancel a match and remove all related player mappings.
+     *
+     * @param nickname the nickname of either player in the match to cancel
      */
     public void cancelMatch(String nickname) {
         String matchId = nicknameToMatchId.get(nickname);
@@ -164,7 +200,11 @@ public class GameMatchService {
     }
 
     /**
-     * Get the game ID for a player's opponent
+     * Get the game ID for a player's opponent.
+     *
+     * @param nickname the requesting player's nickname
+     * @return the opponent's game ID, or {@code null} if the player is not in a match or the
+     *         opponent has not yet set their secret
      */
     public String getOpponentGameId(String nickname) {
         Optional<GameMatch> matchOpt = getMatchByPlayer(nickname);

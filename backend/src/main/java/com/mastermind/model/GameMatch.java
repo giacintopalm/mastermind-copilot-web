@@ -3,6 +3,11 @@ package com.mastermind.model;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * Represents a multiplayer game match between two players.
+ * Each player chooses a secret code for the other to guess; the match
+ * moves through SETUP → PLAYING → FINISHED states.
+ */
 public class GameMatch {
     private String matchId;
     private String player1Nickname;
@@ -108,10 +113,22 @@ public class GameMatch {
         this.startedAt = startedAt;
     }
 
+    /**
+     * Check whether a given player is a participant in this match.
+     *
+     * @param nickname the nickname to test
+     * @return {@code true} if the nickname matches player 1 or player 2
+     */
     public boolean isPlayerInMatch(String nickname) {
         return player1Nickname.equals(nickname) || player2Nickname.equals(nickname);
     }
 
+    /**
+     * Get the nickname of the other player in this match.
+     *
+     * @param nickname the requesting player's nickname
+     * @return the opponent's nickname, or {@code null} if the given nickname is not in this match
+     */
     public String getOpponentNickname(String nickname) {
         if (player1Nickname.equals(nickname)) {
             return player2Nickname;
@@ -121,10 +138,18 @@ public class GameMatch {
         return null;
     }
 
+    /**
+     * Determine whether both players have submitted their secrets and are ready to play.
+     *
+     * @return {@code true} if both player 1 and player 2 are marked as ready
+     */
     public boolean areBothPlayersReady() {
         return player1Ready && player2Ready;
     }
 
+    /**
+     * Lifecycle states of a multiplayer match.
+     */
     public enum MatchStatus {
         SETUP,      // Players setting secrets
         PLAYING,    // Game in progress

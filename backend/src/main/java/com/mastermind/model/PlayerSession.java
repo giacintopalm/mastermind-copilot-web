@@ -2,6 +2,11 @@ package com.mastermind.model;
 
 import java.time.LocalDateTime;
 
+/**
+ * Represents an active player session in the multiplayer lobby.
+ * Tracks the player's connection time, last activity, and current status
+ * so that idle players can be automatically removed.
+ */
 public class PlayerSession {
     private String sessionId;
     private String nickname;
@@ -60,10 +65,18 @@ public class PlayerSession {
         this.lastActivity = lastActivity;
     }
 
+    /**
+     * Update the last-activity timestamp to the current time.
+     * Call this whenever the player performs an action so they are not
+     * evicted by the inactivity cleanup scheduler.
+     */
     public void updateActivity() {
         this.lastActivity = LocalDateTime.now();
     }
 
+    /**
+     * Possible activity states for a player session.
+     */
     public enum PlayerStatus {
         AVAILABLE,
         IN_GAME,

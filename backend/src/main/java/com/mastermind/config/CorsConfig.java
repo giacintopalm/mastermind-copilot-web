@@ -32,6 +32,12 @@ public class CorsConfig implements WebMvcConfigurer {
     @Value("${cors.allow-credentials:true}")
     private boolean allowCredentials;
 
+    /**
+     * Registers CORS mappings for all paths, sourcing allowed origins and methods
+     * from the injected configuration properties.
+     *
+     * @param registry the Spring MVC CORS registry
+     */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         List<String> originsList = Arrays.stream(allowedOrigins.split(","))
@@ -49,6 +55,13 @@ public class CorsConfig implements WebMvcConfigurer {
                 .maxAge(3600); // Cache preflight response for 1 hour
     }
 
+    /**
+     * Provides a {@link CorsConfigurationSource} bean used by Spring Security
+     * to apply CORS filtering at the filter-chain level.
+     *
+     * @return a {@code CorsConfigurationSource} that applies the configured origins,
+     *         methods, and headers to all paths
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();

@@ -1,5 +1,8 @@
 package com.mastermind.dto;
 
+/**
+ * Data Transfer Object for sending a game invitation to another player.
+ */
 public class InvitationRequest {
     private String toNickname;
 
