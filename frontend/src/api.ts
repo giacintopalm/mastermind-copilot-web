@@ -1,6 +1,6 @@
 // API service for communicating with the Java backend
 const API_BASE_URL = import.meta.env.DEV 
-  ? (import.meta.env.VITE_API_BASE_URL || 'https://app-backend-y7teeb42qtz4k.azurewebsites.net/api')
+  ? (import.meta.env.VITE_API_BASE_URL || '/api')
   : 'https://app-backend-y7teeb42qtz4k.azurewebsites.net/api'
 
 export { API_BASE_URL }
