@@ -12,6 +12,7 @@ const TURN_TIME_LIMIT_SECONDS = 30
 type GameMode = 'solo' | 'computer' | 'multiplayer'
 type GamePhase = 'setup' | 'playing' | 'finished'
 type Turn = 'user' | 'computer'
+type Difficulty = 'easy' | 'medium' | 'hard'
 
 export default function App() {
   // Game mode and phase
@@ -31,6 +32,7 @@ export default function App() {
   const [selectedComputerSecretSlot, setSelectedComputerSecretSlot] = useState<number | null>(0)
   const [computerThinking, setComputerThinking] = useState(false)
   const [computerGameSolution, setComputerGameSolution] = useState<Color[]>([])
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium')
   
   // Multiplayer state
   const [multiplayerSession, setMultiplayerSession] = useState<{sessionId: string, nickname: string} | null>(null)
@@ -132,14 +134,17 @@ export default function App() {
     }
   }, [gameMode])
 
+  // Turn time limit: Hard mode = 15s, everything else = 30s
+  const turnTimeLimit = (gameMode === 'computer' && difficulty === 'hard') ? 15 : TURN_TIME_LIMIT_SECONDS
+
   // Per-move countdown timer
   useEffect(() => {
     if (!isTimedTurnActive) {
-      setSecondsLeft(TURN_TIME_LIMIT_SECONDS)
+      setSecondsLeft(turnTimeLimit)
       return
     }
 
-    setSecondsLeft(TURN_TIME_LIMIT_SECONDS)
+    setSecondsLeft(turnTimeLimit)
     const interval = setInterval(() => {
       setSecondsLeft((prev) => Math.max(prev - 1, 0))
     }, 1000)
@@ -697,7 +702,7 @@ export default function App() {
   }
 
   async function handleTurnTimeout() {
-    setError('Tempo scaduto: mossa inviata automaticamente.')
+    setError('Time is up: move submitted automatically.')
 
     const timedGuess = getTimeoutGuess(current)
 
@@ -782,14 +787,25 @@ export default function App() {
     }
   }
 
+  function randomGuess(): Color[] {
+    return Array.from({ length: SLOT_COUNT }, () => PALETTE[Math.floor(Math.random() * PALETTE.length)])
+  }
+ 
   async function makeComputerGuess() {
     if (!computerGameState || computerGameOver || computerThinking) return
     
     try {
       setComputerThinking(true)
       setError(null)
+
+      // Thinking delay: Easy = 1500ms, Medium = 800ms, Hard = 300ms
+      const thinkingDelay = difficulty === 'easy' ? 1500 : difficulty === 'hard' ? 300 : 800
+      await new Promise(resolve => setTimeout(resolve, thinkingDelay))
       
-      const suggestion = await gameApi.getSuggestedGuess(computerGameState.id)
+      // Easy: random guess. Medium/Hard: use the suggest algorithm
+      const suggestion = difficulty === 'easy'
+        ? randomGuess()
+        : await gameApi.getSuggestedGuess(computerGameState.id)
       
       if (suggestion === null) {
         setError('Computer could not generate a guess.')
@@ -1296,7 +1312,7 @@ export default function App() {
           </div>
           <div className="section-content">
             <div className={`turn-timer ${secondsLeft <= 10 ? 'danger' : ''}`}>
-              Tempo rimasto: <strong>{secondsLeft}s</strong>
+              Time left: <strong>{secondsLeft}s</strong>
             </div>
             <div className="game-layout">
               <div className="guess-container">
@@ -1710,7 +1726,7 @@ export default function App() {
           {isMyBoard && !playerGameOver && (
             <>
             <div className={`turn-timer ${secondsLeft <= 10 ? 'danger' : ''}`}>
-              Tempo rimasto: <strong>{secondsLeft}s</strong>
+              Time left: <strong>{secondsLeft}s</strong>
             </div>
             <div className="guess-container">
               <div className="attempt-number current">?</div>
@@ -1800,6 +1816,12 @@ export default function App() {
   }
 
   function renderComputerSetup() {
+    const difficultyOptions: { value: Difficulty; label: string; desc: string }[] = [
+      { value: 'easy',   label: '🟢 Easy',   desc: 'Computer guesses randomly' },
+      { value: 'medium', label: '🟡 Medium', desc: 'Computer uses smart strategy' },
+      { value: 'hard',   label: '🔴 Hard',   desc: 'Optimal strategy + 15s timer' },
+    ]
+
     return (
       <>
         <section className="setup-section">
@@ -1807,6 +1829,24 @@ export default function App() {
             <h2>Set Computer's Target</h2>
           </div>
           <div className="section-content">
+            <div className="difficulty-selector">
+              <p className="difficulty-label">Select difficulty:</p>
+              <div className="difficulty-buttons">
+                {difficultyOptions.map(opt => (
+                  <button
+                    key={opt.value}
+                    className={`difficulty-btn difficulty-${opt.value}${difficulty === opt.value ? ' active' : ''}`}
+                    onClick={() => setDifficulty(opt.value)}
+                    title={opt.desc}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="difficulty-desc">
+                {difficultyOptions.find(o => o.value === difficulty)?.desc}
+              </p>
+            </div>
             <p className="setup-instruction">
               Choose a secret code for the computer to guess:
             </p>
@@ -1972,7 +2012,7 @@ export default function App() {
           {gamePhase === 'playing' && !playerGameOver && player === 'user' && (
             <>
             <div className={`turn-timer ${secondsLeft <= 10 ? 'danger' : ''}`}>
-              Tempo rimasto: <strong>{secondsLeft}s</strong>
+              Time left: <strong>{secondsLeft}s</strong>
             </div>
             <div className="guess-container">
               <div className="attempt-number current">?</div>

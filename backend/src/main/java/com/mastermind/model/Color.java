@@ -1,5 +1,8 @@
 package com.mastermind.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * Enumeration representing the available colors in the Mastermind game.
  * Maps directly to the TypeScript Color type from the frontend.
@@ -19,6 +22,7 @@ public enum Color {
         this.value = value;
     }
 
+    @JsonValue
     public String getValue() {
         return value;
     }
@@ -29,6 +33,7 @@ public enum Color {
      * @return Color enum value
      * @throws IllegalArgumentException if color is not valid
      */
+    @JsonCreator
     public static Color fromString(String value) {
         for (Color color : Color.values()) {
             if (color.value.equalsIgnoreCase(value)) {

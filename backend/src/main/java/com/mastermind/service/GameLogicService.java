@@ -18,7 +18,9 @@ import java.util.Random;
 @Service
 public class GameLogicService {
 
-    private static final Color[] AVAILABLE_COLORS = Color.values();
+    private static final Color[] AVAILABLE_COLORS = {
+            Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW, Color.PURPLE, Color.CYAN
+    };
     private static final Random RANDOM = new SecureRandom();
 
     /**
